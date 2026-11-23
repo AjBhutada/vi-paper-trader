@@ -1,0 +1,62 @@
+name: vi-shadow
+# SHADOW live bot (no money): does in real time what a real trading bot would do and sends its orders to the
+# Upstox SANDBOX (pretend orders). Started by cron-job.org at 08:50 (morning) and 15:15 (afternoon) India time.
+# No GitHub timers here: a late start is useless for a timed bot (it would only log "missed").
+on:
+  workflow_dispatch:
+    inputs:
+      part:
+        description: "morning or afternoon (blank = choose by India time)"
+        required: false
+        default: ""
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: vi-shadow
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q "upstox-python-sdk>=2.19"
+      - name: Shadow session
+        env:
+          UPSTOX_ACCESS_TOKEN: ${{ secrets.UPSTOX_ACCESS_TOKEN }}
+          UPSTOX_SANDBOX_TOKEN: ${{ secrets.UPSTOX_SANDBOX_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          P="${{ inputs.part }}"
+          if [ -z "$P" ]; then H=$(TZ=Asia/Kolkata date +%H); if [ "$H" -lt 12 ]; then P=morning; else P=afternoon; fi; fi
+          python paper/shadow.py "$P"
+      - name: Failure email (GitHub issue)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --title "VI shadow bot: a session failed ($(TZ=Asia/Kolkata date +'%d %b %H:%M') IST)" \
+            --body "@AjBhutada the shadow (sandbox) bot stopped with an error. The paper results are not affected. Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      - name: Problem email (GitHub issue)
+        if: always() && hashFiles('state/alerts_pending.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          { echo "@AjBhutada the VI shadow bot needs a look:"; echo; cat state/alerts_pending.md; echo;
+            echo "Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; } > "$RUNNER_TEMP/alert.md"
+          gh issue create --title "VI shadow bot alert: $(TZ=Asia/Kolkata date +'%d %b %H:%M') IST" --body-file "$RUNNER_TEMP/alert.md"
+          rm -f state/alerts_pending.md
+      - name: Save the shadow log
+        if: always()
+        run: |
+          git config user.name "vi-paper-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          [ -d state/shadow ] && git add -A state/shadow || true
+          [ -f docs/data/shadow.json ] && git add docs/data/shadow.json || true
+          git commit -q -m "VI shadow bot: $(TZ=Asia/Kolkata date +'%F %H:%M')" || echo "Nothing new to save"
+          ok=0; for i in 1 2 3 4; do git pull -q --rebase && git push -q && { ok=1; break; }; git rebase --abort 2>/dev/null; sleep 10; done
+          [ "$ok" = 1 ] || { echo "::error::could not save the shadow log"; exit 1; }

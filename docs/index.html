@@ -38,6 +38,9 @@
   <div class="panel"><h3>Account value (₹)</h3><div class="chartbox"><canvas id="eq"></canvas></div></div>
   <div class="panel"><h3>Open position</h3><div id="open"></div></div>
   <div class="panel"><h3>Trades (newest first)</h3><div class="scroll"><table id="tr"></table></div></div>
+  <div class="panel"><h3>Live shadow bot (orders sent to the Upstox sandbox, no money)</h3>
+    <p class="sub" style="margin:0 0 8px">Rehearses the real bot: connects live at 08:50 and 15:15, sends the pre-open orders at 09:00, buys back at 09:16, buys futures at 15:25. "dry" = logged only (no sandbox token yet).</p>
+    <div class="scroll"><table id="sh"></table></div></div>
   <div class="panel"><h3>What the research expects</h3><div id="ref"></div></div>
   <div class="panel"><h3>Rules</h3>
     <p><span class="tag ta">A</span> <b>Overnight futures</b>: buy VI's future in one order at 15:25 (real best ask from the tick recorder), sell at the next 09:15 pre-open auction price. As many lots as ₹ allows with a cushion. Switch to next month when fewer than 5 trading days are left before expiry.</p>
@@ -87,6 +90,20 @@ fetch("data/dashboard.json?" + Date.now()).then(r => r.json()).then(d => {
     (about ${r.overnight_net_bps_per_night} bps a night after costs) and <b>B ≈ +${r.gapshort_last12m_pct}%</b> a year (about ${r.gapshort_net_bps_per_trade_2026} bps per trade,
     roughly ${r.gapup_days_per_month} gap-up mornings a month). Three months is a short test: expect B to have only 6–10 trades.`;
 }).catch(e => { document.getElementById("sub").textContent = "Could not load data: " + e; });
+const shText = e => {
+  const d = e.detail;
+  if (typeof d === "string") return d;
+  if (e.what.startsWith("order")) { const r = d.request || {};
+    return `${d.label}: ${r.transaction_type} ${(+r.quantity).toLocaleString("en-IN")} ${r.instrument_token} ${r.order_type}${r.order_type === "LIMIT" ? " @ " + r.price : ""} (${r.product === "I" ? "intraday" : "NRML"})` +
+      (d.order_ids ? ` → sandbox id ${d.order_ids}` : "") + (d.ms != null ? `, ${d.ms} ms` : "") + (d.error ? ` ERROR ${d.error}` : ""); }
+  return Object.entries(d).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" · ");
+};
+fetch("data/shadow.json?" + Date.now()).then(r => r.ok ? r.json() : []).then(rows => {
+  const t = document.getElementById("sh");
+  t.innerHTML = `<tr><th class="l">Day</th><th class="l">Session</th><th class="l">Time</th><th class="l">Step</th><th class="l">Details</th></tr>` +
+    (rows.length ? rows.slice().reverse().map(e => `<tr><td class="l">${e.day}</td><td class="l">${e.part}</td><td class="l">${e.t}</td><td class="l">${e.what}</td><td class="l" style="white-space:normal">${shText(e)}</td></tr>`).join("")
+      : `<tr><td colspan="5" class="l">No shadow sessions yet.</td></tr>`);
+}).catch(() => {});
 </script>
 </body>
 </html>
