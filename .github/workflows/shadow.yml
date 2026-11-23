@@ -1,8 +1,11 @@
 name: vi-shadow
 # SHADOW live bot (no money): does in real time what a real trading bot would do and sends its orders to the
-# Upstox SANDBOX (pretend orders). Started by cron-job.org at 08:50 (morning) and 15:15 (afternoon) India time.
-# No GitHub timers here: a late start is useless for a timed bot (it would only log "missed").
+# Upstox SANDBOX (pretend orders). Started by cron-job.org at 08:40 (morning) and 15:05 (afternoon) India time,
+# 20 minutes early: it connects, then waits for the exact second (09:00:05, 09:16:00, 15:25:00).
 on:
+  schedule:                    # backups only (GitHub timers often run late); a second start the same day does nothing
+    - cron: "17 3 * * 1-5"     # 08:47 India
+    - cron: "43 9 * * 1-5"     # 15:13 India
   workflow_dispatch:
     inputs:
       part:

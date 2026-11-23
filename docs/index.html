@@ -110,8 +110,11 @@ fetch("data/dashboard.json?" + Date.now()).then(r => r.json()).then(d => {
       <td class="${cls(r.shadow_net ?? 0)}">${r.shadow_net == null ? (r.missed ? "missed" : "open") : sgn(r.shadow_net)}</td>
       <td class="${cls(r.diff_rs ?? 0)}"><b>${r.diff_rs == null ? "–" : sgn(r.diff_rs)}</b></td><td class="l" style="white-space:normal">${r.orders || ""}</td></tr>`).join("")
       : `<tr><td colspan="10" class="l">No trades to compare yet.</td></tr>`);
-  const o = d.open;
-  document.getElementById("open").innerHTML = o ? `Plan A holds <b>${o.lots} lot(s) = ${(+o.qty).toLocaleString("en-IN")} ${o.symbol}</b>, bought at ₹${(+o.entry).toFixed(4)} on ${o.date}; sells at the next 09:15 auction.` : "None right now.";
+  const o = d.open, so = sh.open;
+  document.getElementById("open").innerHTML =
+    `<p style="margin:0 0 6px"><span class="tag ta">A</span> <b>Paper bot:</b> ` + (o ? `${o.lots} lot(s) = <b>${(+o.qty).toLocaleString("en-IN")} ${o.symbol}</b>, bought at ₹${(+o.entry).toFixed(4)} on ${o.date} (${o.how || ""}); sells at the next 09:15 auction.` : "no open position.") + `</p>` +
+    `<p style="margin:0"><span class="tag ta">A</span> <b>Live shadow bot:</b> ` + (so ? `<b>${(+so.qty).toLocaleString("en-IN")} ${so.instrument}</b>, bought at ₹${(+so.entry).toFixed(4)} on ${so.date} (price seen live at 15:25:00); sells at the next 09:15 auction.` : "no open position.") + `</p>` +
+    (o && so ? `<p class="sub" style="margin:6px 0 0">Entry difference: ${((so.entry - o.entry) * 100).toFixed(2)} paise per share = ${sgn((so.entry - o.entry) * so.qty * -1)} for the live bot vs paper.</p>` : "");
   const tr = (d.trades || []).slice().reverse();
   document.getElementById("tr").innerHTML = `<tr><th class="l">Plan</th><th class="l">Date</th><th class="l">Contract</th><th>Qty</th><th>Entry</th><th>Exit</th><th>Gross</th><th>Charges</th><th>Net</th><th>Net bps</th><th>Account after</th><th class="l">Note</th></tr>` +
     (tr.length ? tr.map(t => `<tr><td><span class="tag ${t.plan[0] === "A" ? "ta" : "tb"}">${t.plan[0]}</span></td><td class="l">${t.date}${t.exit_date !== t.date ? " → " + t.exit_date : ""}</td><td class="l">${t.instrument}</td>
