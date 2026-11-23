@@ -65,5 +65,45 @@
     "slice": false
    }
   }
+ },
+ {
+  "day": "2026-11-23",
+  "part": "check-1528",
+  "t": "15:28:15.305",
+  "what": "order_sent",
+  "detail": {
+   "label": "check",
+   "request": {
+    "quantity": 1,
+    "product": "I",
+    "validity": "DAY",
+    "price": 1.0,
+    "tag": "vi-shadow-check",
+    "instrument_token": "NSE_EQ|INE669E01016",
+    "order_type": "LIMIT",
+    "transaction_type": "BUY",
+    "disclosed_quantity": 0,
+    "trigger_price": 0.0,
+    "is_amo": false,
+    "slice": false
+   },
+   "status": "success",
+   "order_ids": [
+    "261123152815190"
+   ],
+   "ms": 340
+  }
+ },
+ {
+  "day": "2026-11-23",
+  "part": "check-1528",
+  "t": "15:28:17.032",
+  "what": "cancel_sent",
+  "detail": {
+   "label": "check",
+   "order_id": "261123152815190",
+   "status": "success",
+   "ms": 726
+  }
  }
 ]
