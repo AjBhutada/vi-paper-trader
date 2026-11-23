@@ -134,7 +134,7 @@ class Orders:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("part", choices=["morning", "afternoon"])
+    ap.add_argument("part", choices=["morning", "afternoon", "check"])
     ap.add_argument("--dry", action="store_true")
     ap.add_argument("--at")
     a = ap.parse_args()
@@ -148,6 +148,20 @@ def main():
         events.append({"t": t.strftime("%H:%M:%S.%f")[:-3], "what": what, "detail": detail})
         print(t.strftime("%H:%M:%S"), what, json.dumps(detail, default=str)[:300] if not isinstance(detail, str) else detail, flush=True)
 
+    if a.part == "check":
+        # sandbox token test: a far-away limit BUY of 1 VI share at Rs 1.00, then cancel it (sandbox = no money)
+        if not os.environ.get("UPSTOX_SANDBOX_TOKEN"):
+            print("UPSTOX_SANDBOX_TOKEN is not set", flush=True); sys.exit(1)
+        orders = Orders(False, log)
+        oid = orders.place("check", EQ, "BUY", 1, "LIMIT", "I", 1.00)
+        time.sleep(1)
+        orders.cancel("check", oid)
+        st = vb.State(ROOT / "state"); st.init(S["start_date"])
+        ok = any(e["what"] == "order_sent" for e in events)
+        print("SANDBOX CHECK:", "OK - token works" if ok else "FAILED (see order_error above)", flush=True)
+        a.part = f"check-{clock.now():%H%M}"
+        finish(day, a.part, events, st)
+        sys.exit(0 if ok else 1)
     if (OUT / f"{day}_{a.part}.json").exists() and not a.at:
         print(f"{day} {a.part}: this session already ran today - nothing to do", flush=True)
         return
