@@ -28,18 +28,25 @@
   .foot { color:var(--muted); font-size:13px; margin-top:20px; }
   .tag { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px; color:#fff; }
   .ta { background:var(--a); } .tb { background:var(--b); }
+  .rowtitle { font-size:15px; margin:6px 0 8px; } .muted { color:var(--muted); font-weight:400; font-size:13px; }
 </style>
 </head>
 <body>
 <main>
   <h1>Vodafone Idea paper trader</h1>
   <p class="sub" id="sub">Loading…</p>
+  <h3 class="rowtitle">Paper bot <span class="muted">— prices read afterwards from recorded ticks (the ideal result)</span></h3>
   <div class="cards" id="cards"></div>
-  <div class="panel"><h3>Account value (₹)</h3><div class="chartbox"><canvas id="eq"></canvas></div></div>
+  <h3 class="rowtitle">Live shadow bot <span class="muted">— acts in real time, orders go to the Upstox sandbox (what a real bot would get)</span></h3>
+  <div class="cards" id="scards"></div>
+  <div class="panel"><h3>Account value (₹) — solid = paper, dashed = live shadow</h3><div class="chartbox"><canvas id="eq"></canvas></div></div>
+  <div class="panel"><h3>Paper vs live shadow, trade by trade</h3>
+    <p class="sub" style="margin:0 0 8px">Same quantities in both; any difference is execution: the price seen live at that second, timing, or a session that was missed. Gap = shadow price − paper price (paise per share; for buys, positive = shadow paid more).</p>
+    <div class="scroll"><table id="cmp"></table></div></div>
   <div class="panel"><h3>Open position</h3><div id="open"></div></div>
-  <div class="panel"><h3>Trades (newest first)</h3><div class="scroll"><table id="tr"></table></div></div>
-  <div class="panel"><h3>Live shadow bot (orders sent to the Upstox sandbox, no money)</h3>
-    <p class="sub" style="margin:0 0 8px">Rehearses the real bot: connects live at 08:50 and 15:15, sends the pre-open orders at 09:00, buys back at 09:16, buys futures at 15:25. "dry" = logged only (no sandbox token yet).</p>
+  <div class="panel"><h3>Paper trades (newest first)</h3><div class="scroll"><table id="tr"></table></div></div>
+  <div class="panel"><h3>Live shadow bot — session log</h3>
+    <p class="sub" style="margin:0 0 8px">Connects live at 08:50 and 15:15, sends the pre-open orders at 09:00:05, buys back at 09:16:00, buys futures at 15:25:00. "logged only" = no sandbox token at that time.</p>
     <div class="scroll"><table id="sh"></table></div></div>
   <div class="panel"><h3>What the research expects</h3><div id="ref"></div></div>
   <div class="panel"><h3>Rules</h3>
@@ -64,19 +71,45 @@ fetch("data/dashboard.json?" + Date.now()).then(r => r.json()).then(d => {
     <span>Worst trade</span><b>${x.worst_rs == null ? "–" : sgn(x.worst_rs)}</b><span>Deepest dip</span><b>${x.max_dip_pct}%</b>`;
   document.getElementById("cards").innerHTML = card("A · Overnight futures", d.plans.A, pe(d.plans.A)) +
     card("B · Gap-up auction short", d.plans.B, pe(d.plans.B)) + card("Both plans", d.combined, "");
+  const sh = d.shadow || {};
+  if (sh.plans) {
+    const se = x => `<span>Trades</span><b>${x.trades}</b><span>Wins</span><b>${x.wins}</b>
+      <span>vs paper</span><b class="${cls(x.vs_paper_rs ?? 0)}">${x.vs_paper_rs == null ? "–" : sgn(x.vs_paper_rs)}</b>
+      <span>Missed trades</span><b>${x.missed}</b>`;
+    document.getElementById("scards").innerHTML = card("A · Overnight (live)", sh.plans.A, se(sh.plans.A)) +
+      card("B · Gap-up short (live)", sh.plans.B, se(sh.plans.B)) +
+      card("Both plans (live)", sh.combined, `<span>Difference vs paper</span><b class="${cls(sh.combined.now - d.combined.now)}">${sgn(sh.combined.now - d.combined.now)}</b>`);
+  } else {
+    document.getElementById("scards").innerHTML = `<div class="card">Shadow results appear after the first live session is booked${sh.error ? " (" + sh.error + ")" : ""}.</div>`;
+  }
   const days = d.days || [];
   const lab = [d.start_date + " start"].concat(days.map(x => x.date));
   const s0 = d.plans.A.start, s1 = d.plans.B.start;
+  const curve = (sh.curve || []);
+  const live = k => { let v = k === "A" ? s0 : s1; const m = Object.fromEntries(curve.map(c => [c.date, c[k]]));
+    return [v].concat(days.map(x => (m[x.date] != null ? (v = m[x.date]) : v))); };
   new Chart(document.getElementById("eq"), { type: "line",
     data: { labels: lab, datasets: [
       { label: "A overnight", data: [s0].concat(days.map(x => +x.equity_A)), borderColor: css("--a"), pointRadius: 0, tension: .1 },
+      { label: "A live shadow", data: live("A"), borderColor: css("--a"), borderDash: [6, 4], pointRadius: 0, tension: .1 },
       { label: "B gap-up short", data: [s1].concat(days.map(x => +x.equity_B)), borderColor: css("--b"), pointRadius: 0, tension: .1 },
-      { label: "Both", data: [s0 + s1].concat(days.map(x => +x.total)), borderColor: css("--t"), pointRadius: 0, tension: .1, yAxisID: "y2" } ] },
+      { label: "B live shadow", data: live("B"), borderColor: css("--b"), borderDash: [6, 4], pointRadius: 0, tension: .1 },
+      { label: "Both (paper)", data: [s0 + s1].concat(days.map(x => +x.total)), borderColor: css("--t"), pointRadius: 0, tension: .1, yAxisID: "y2" } ] },
     options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
       plugins: { legend: { labels: { color: css("--ink") } }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${inr(c.parsed.y)}` } } },
       scales: { x: { ticks: { color: css("--muted"), maxTicksLimit: 8 }, grid: { color: css("--line") } },
                 y: { ticks: { color: css("--muted"), callback: v => "₹" + (v / 1e5).toFixed(2) + "L" }, grid: { color: css("--line") }, title: { display: true, text: "each plan", color: css("--muted") } },
                 y2: { position: "right", ticks: { color: css("--muted"), callback: v => "₹" + (v / 1e5).toFixed(2) + "L" }, grid: { display: false }, title: { display: true, text: "both", color: css("--muted") } } } } });
+  const f4 = v => v == null ? "–" : (+v).toFixed(4);
+  const gp = v => v == null ? "–" : (v > 0 ? "+" : "") + v;
+  const cmp = (sh.compare || []).slice().reverse();
+  document.getElementById("cmp").innerHTML = `<tr><th class="l">Plan</th><th class="l">Date</th><th>Qty</th><th>Paper in → out</th><th>Live in → out</th><th>Gap in / out (paise)</th><th>Paper net</th><th>Live net</th><th>Difference</th><th class="l">Live orders (sandbox)</th></tr>` +
+    (cmp.length ? cmp.map(r => `<tr><td><span class="tag ${r.plan === "A" ? "ta" : "tb"}">${r.plan}</span></td><td class="l">${r.date}${r.exit_date && r.exit_date !== r.date ? " → " + r.exit_date : ""}</td>
+      <td>${(+r.qty).toLocaleString("en-IN")}</td><td>${f4(r.paper_entry)} → ${f4(r.paper_exit)}</td><td>${f4(r.shadow_entry)} → ${f4(r.shadow_exit)}</td>
+      <td>${gp(r.entry_gap_paise)} / ${gp(r.exit_gap_paise)}</td><td class="${cls(r.paper_net ?? 0)}">${r.paper_net == null ? "open" : sgn(r.paper_net)}</td>
+      <td class="${cls(r.shadow_net ?? 0)}">${r.shadow_net == null ? (r.missed ? "missed" : "open") : sgn(r.shadow_net)}</td>
+      <td class="${cls(r.diff_rs ?? 0)}"><b>${r.diff_rs == null ? "–" : sgn(r.diff_rs)}</b></td><td class="l" style="white-space:normal">${r.orders || ""}</td></tr>`).join("")
+      : `<tr><td colspan="10" class="l">No trades to compare yet.</td></tr>`);
   const o = d.open;
   document.getElementById("open").innerHTML = o ? `Plan A holds <b>${o.lots} lot(s) = ${(+o.qty).toLocaleString("en-IN")} ${o.symbol}</b>, bought at ₹${(+o.entry).toFixed(4)} on ${o.date}; sells at the next 09:15 auction.` : "None right now.";
   const tr = (d.trades || []).slice().reverse();

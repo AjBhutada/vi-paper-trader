@@ -488,6 +488,13 @@ def report(st, now):
             "combined": {"start": tot0, "now": round(tot), "pnl": round(tot - tot0), "ret_pct": round((tot / tot0 - 1) * 100, 2)},
             "open": m["open"], "days": days, "trades": trades[-200:], "reference": S["backtest_reference"],
             "last_gap_pct": m.get("_gap"), "rules": {k: v for k, v in S.items() if not k.startswith("_") and k != "backtest_reference"}}
+    try:                                         # the live shadow bot, lined up with the paper trades
+        sys.path.insert(0, str(ROOT / "paper"))
+        import shadow_ledger
+        dash["shadow"] = shadow_ledger.build()
+    except Exception as e:
+        log("shadow ledger not built:", e)
+        dash["shadow"] = {"error": str(e)[:200]}
     (ROOT / "docs" / "data").mkdir(parents=True, exist_ok=True)
     (ROOT / "docs" / "data" / "dashboard.json").write_text(json.dumps(dash, indent=1))
     pos = m["open"]
@@ -496,11 +503,11 @@ def report(st, now):
              f"Dashboard: https://ajbhutada.github.io/vi-paper-trader/  ·  updated {dash['updated']}", "",
              "| Plan | Start | Now | P&L | Return | Trades | Win rate | Avg / trade | Worst trade | Deepest dip |",
              "|---|---|---|---|---|---|---|---|---|---|"]
+    rs = lambda v: "-" if v is None else f"Rs {v:+,}"
     for name, x in (("A Overnight futures", A), ("B Gap-up auction short", B)):
+        win = "-" if x["win_pct"] is None else f"{x['win_pct']}%"
         lines.append(f"| {name} | Rs {x['start']:,} | Rs {x['now']:,} | Rs {x['pnl']:+,} | {x['ret_pct']:+.2f}% | {x['trades']} | "
-                     f"{x['win_pct'] if x['win_pct'] is not None else '-'}% | "
-                     f"{'Rs %+,d' % x['avg_net_rs'] if x['avg_net_rs'] is not None else '-'} | "
-                     f"{'Rs %+,d' % x['worst_rs'] if x['worst_rs'] is not None else '-'} | {x['max_dip_pct']}% |")
+                     f"{win} | {rs(x['avg_net_rs'])} | {rs(x['worst_rs'])} | {x['max_dip_pct']}% |")
     c = dash["combined"]
     lines += [f"| **Both** | Rs {c['start']:,} | Rs {c['now']:,} | Rs {c['pnl']:+,} | {c['ret_pct']:+.2f}% | | | | | |", "",
               f"Open overnight position: {pos['lots']} lot(s) = {pos['qty']:,} {pos['symbol']} bought at {pos['entry']:.4f} on {pos['date']}"

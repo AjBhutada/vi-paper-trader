@@ -27,6 +27,20 @@ EQ = S["equity_key"]
 OUT = ROOT / "state" / "shadow"
 
 
+def walk(levels, qty):
+    """Average price for buying `qty` through the visible (price, qty) levels; beyond them, 1 paisa worse."""
+    left, cost = qty, 0.0
+    for p, q in levels or []:
+        if not p:
+            continue
+        take = min(left, q); cost += take * p; left -= take
+        if left <= 0:
+            return round(cost / qty, 4)
+    if not levels:
+        return None
+    return round((cost + left * (levels[-1][0] + 0.01)) / qty, 4)
+
+
 class Clock:
     """Real India time, optionally shifted so a test can rehearse a session at any hour."""
     def __init__(self, at=None):
@@ -217,12 +231,18 @@ def main():
         fs = feed.get(pos["key"]) if pos else {}
         log("auction", {"VI_open": o, "B_limit": limit, "B_filled": bool(o and o >= limit),
                         "A_future_open": fs.get("open")})
+        if pos:
+            log("fill", {"leg": "A-sell", "price": fs.get("open"), "qty": pos["qty"], "symbol": pos["symbol"], "bought_on": pos["date"]})
         if o and o >= limit:
+            log("fill", {"leg": "B-short", "price": o, "qty": qty_b, "limit": limit, "prev_last": last})
             clock.wait_until("09:16:00")
             s = feed.get(EQ)
             log("cover_quote", {"best_ask": s.get("ask", [None])[:3], "ltp": s.get("ltp")})
             orders.place("B-cover", EQ, "BUY", qty_b, "MARKET", "I")
+            log("fill", {"leg": "B-cover", "price": walk(s.get("ask"), qty_b), "qty": qty_b,
+                         "quote_age_s": round(time.time() - s["rx"], 2) if s.get("rx") else None})
         else:
+            log("fill", {"leg": "B-none", "open": o, "limit": limit})
             orders.cancel("B-limit-short", b_id)
         time.sleep(2)
         feed.stop()
@@ -250,6 +270,8 @@ def main():
         log("buy_quote", {"best_ask": s.get("ask", [None])[:3], "ltp": s.get("ltp"), "age_s": round(time.time() - s["rx"], 2) if s.get("rx") else None})
         if lots:
             orders.place("A-buy", c["key"], "BUY", lots * lot, "MARKET", "D")
+            log("fill", {"leg": "A-buy", "price": walk(s.get("ask"), lots * lot), "qty": lots * lot, "symbol": c["symbol"],
+                         "key": c["key"], "quote_age_s": round(time.time() - s["rx"], 2) if s.get("rx") else None})
         time.sleep(2)
         feed.stop()
     log("feed_stats", {"messages": feed.n})
@@ -260,7 +282,7 @@ def finish(day, part, events, st):
     f = OUT / f"{day}_{part}.json"
     f.write_text(json.dumps({"day": str(day), "part": part, "events": events}, indent=1, default=str))
     # short summary for the dashboard: the last 40 key events across days
-    keep = ("plan", "auction", "cover_quote", "buy_quote", "order_sent", "order_dry", "order_error", "cancel_sent",
+    keep = ("plan", "auction", "cover_quote", "buy_quote", "fill", "order_sent", "order_dry", "order_error", "cancel_sent",
             "cancel_dry", "missed", "skip", "error", "feed_error", "note")
     rows = []
     for g in sorted(OUT.glob("*.json"))[-20:]:
