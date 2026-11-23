@@ -1,14 +1,15 @@
 name: vi-paper
 # Vodafone Idea paper trader (paper only, no orders). One job does whatever is due:
-#   morning (from 09:17 India): close the overnight futures position at the 09:15 auction price; gap-up short check
-#   evening (from 15:31 India): open the next overnight position at the 15:00-15:29 average price
-# Main starts come from cron-job.org (workflow_dispatch) at 09:18 and 15:33 India time. The GitHub timers below are
-# only backups: they often run late, and a late run just catches up (all prices come from 1-minute candles).
+#   morning: close the overnight futures position at the 09:15 auction price; gap-up short (covered at the 09:16 tick ask)
+#   evening: open the next overnight position at the 15:25 tick ask
+# Main starts come from cron-job.org (workflow_dispatch) at 12:40 and 16:05 India time, after the tick recorder uploads
+# its morning and afternoon files (exact fills need them). The GitHub timers below are
+# only backups: they often run late, and a late run just catches up (prices come from 1-minute candles and recorded ticks).
 # Times below are UTC; India = UTC + 5:30.
 on:
   workflow_dispatch:
   schedule:
-    - cron: "53 3 * * 1-5"     # 09:23 India - backup morning
+    - cron: "37 7 * * 1-5"     # 13:07 India - backup morning (after the recorder's morning upload)
     - cron: "41 4 * * 1-5"     # 10:11 India - backup morning
     - cron: "47 10 * * 1-5"    # 16:17 India - backup evening
     - cron: "19 14 * * 1-5"    # 19:49 India - backup evening
@@ -21,7 +22,7 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -34,6 +35,9 @@ jobs:
           key: candles-${{ github.run_id }}
           restore-keys: candles-
       - name: Paper-trade whatever is due
+        env:
+          TICKS_KEY: ${{ secrets.TICKS_KEY }}
+          GH_TOKEN: ${{ github.token }}
         run: python paper/vi_bot.py
       - name: Failure email (GitHub issue)
         if: failure()

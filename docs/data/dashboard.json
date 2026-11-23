@@ -1,6 +1,6 @@
 {
- "updated": "23 Nov 2026 14:16 IST",
- "start_date": "2026-11-24",
+ "updated": "23 Nov 2026 14:44 IST",
+ "start_date": "2026-11-23",
  "plans": {
   "A": {
    "start": 500000,
@@ -50,19 +50,16 @@
   "gapup_days_per_month": 2.5,
   "_note": "What the research expects (Nov 2025 - Nov 2026 replay on today's terms). The paper test checks whether this still holds."
  },
- "last_gap_pct": null,
+ "last_gap_pct": 0.0,
  "rules": {
-  "start_date": "2026-11-24",
+  "start_date": "2026-11-23",
   "underlying": "IDEA",
   "equity_key": "NSE_EQ|INE669E01016",
   "capital_overnight": 500000,
   "capital_gapshort": 500000,
-  "overnight_entry_window": [
-   "15:00",
-   "15:29"
-  ],
+  "overnight_entry_minute": "15:25",
   "overnight_exit_minute": "09:15",
-  "roll_trading_days": 2,
+  "roll_trading_days": 5,
   "fut_margin_frac": 0.43,
   "lot_cushion_frac": 0.137,
   "gap_threshold_pct": 1.0,
@@ -79,6 +76,15 @@
   "stamp_fut_buy": 2e-05,
   "stamp_intraday_buy": 3e-05,
   "sebi": 1e-06,
-  "gst": 0.18
+  "gst": 0.18,
+  "ticks": {
+   "recorder_repo": "AjBhutada/upstox-tick-recorder",
+   "wait_for_ticks_until": {
+    "morning": "13:30",
+    "evening": "18:00"
+   },
+   "max_gap_seconds": 60,
+   "_note": "Fills outside the auction come from the tick recorder's encrypted daily files (needs the TICKS_KEY secret). The bot waits for them until these times, then falls back to minute candles and says so in the trade note."
+  }
  }
 }

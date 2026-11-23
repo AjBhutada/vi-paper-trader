@@ -1,16 +1,19 @@
 """Vodafone Idea paper trader - two plans, Rs 5 lakh each, compounding. PAPER ONLY: no orders are ever sent.
 
-Plan A  OVERNIGHT   : buy the VI future at the 15:00-15:29 average price, sell at the next 09:15 auction open.
-Plan B  GAP-UP SHORT: if VI's auction open is >= 1% above yesterday's last price, short 5x the account at the
-                      auction open and buy back at the 09:16 price.
+Plan A  OVERNIGHT   : buy the VI future in one order at 15:25, sell at the next 09:15 pre-open auction price.
+                      Roll to next month when fewer than 5 trading days are left.
+Plan B  GAP-UP SHORT: a limit sell at yesterday's last price x 1.01 in the pre-open: fills only if the auction
+                      price is that high, at the auction price. Short 5x the account, buy back at 09:16.
 
-Every price comes from Upstox's public 1-minute candles (no login, no live feed), so any run can work out any
-past day exactly: missed runs are caught up, and running twice changes nothing.
+Auction prices = the 09:15 minute's open from Upstox's public 1-minute candles (exact: one price for everyone).
+Buys outside the auction = the real best ask from the tick recorder's files (needs TICKS_KEY), walking the
+visible depth; if the recorder has no ticks, the minute's open + half a paisa. Any run can work out any past
+day: missed runs are caught up, and running twice changes nothing.
 
 Usage:  python paper/vi_bot.py [--now "YYYY-MM-DD HH:MM"] [--state DIR] [--start YYYY-MM-DD] [--no-report]
         --now is a fake clock for tests; --state points at another state folder for replays.
 """
-import argparse, gzip, http.cookiejar, io, json, math, sys, time, urllib.error, urllib.parse, urllib.request
+import argparse, gzip, http.cookiejar, io, json, math, os, subprocess, sys, tarfile, time, urllib.error, urllib.parse, urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -139,6 +142,64 @@ def holidays(st):
     return set(h.get("days", []))
 
 
+# ---------------------------------------------------------------- ticks from the recorder
+def tick_assets(day):
+    """The tick recorder's encrypted files for a day (GitHub release named YYYYMMDD): [(name, url)]."""
+    hdr = {"Accept": "application/vnd.github+json"}
+    tok = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
+    if tok:
+        hdr["Authorization"] = f"Bearer {tok}"
+    raw = http_get(f"https://api.github.com/repos/{S['ticks']['recorder_repo']}/releases/tags/{day:%Y%m%d}", headers=hdr)
+    if not raw:
+        return []
+    return sorted((a["name"], a["browser_download_url"]) for a in json.loads(raw).get("assets", []) if a["name"].endswith(".tgz.enc"))
+
+
+def load_tick_asset(name, url, keys):
+    """Download + decrypt one recorder file and keep only VI lines (shares + futures). Cached."""
+    f = CACHE / "ticks" / (name.replace(".tgz.enc", "") + "_vi.jsonl")
+    if f.exists():
+        return [json.loads(l) for l in f.open(encoding="utf-8")]
+    enc = None
+    for k in range(3):
+        try:
+            enc = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=600).read(); break
+        except Exception:
+            time.sleep(5 + 5 * k)
+    if enc is None:
+        raise RuntimeError(f"could not download {name}")
+    dec = subprocess.run(["openssl", "enc", "-d", "-aes-256-cbc", "-pbkdf2", "-pass", "env:TICKS_KEY"], input=enc,
+                         capture_output=True, check=True, env=dict(os.environ)).stdout
+    needles = [k.split("|")[1] for k in keys]
+    out = []
+    with tarfile.open(fileobj=io.BytesIO(dec), mode="r|gz") as tf:
+        for mem in tf:
+            if not mem.name.endswith("ticks.jsonl"):
+                continue
+            for raw in tf.extractfile(mem):
+                line = raw.decode("utf-8", "ignore")
+                if not any(n in line for n in needles):
+                    continue
+                try:
+                    j = json.loads(line)
+                except ValueError:
+                    continue
+                for k, v in ((j.get("msg") or {}).get("feeds") or {}).items():
+                    if k not in keys:
+                        continue
+                    mff = (v.get("fullFeed") or {}).get("marketFF") or {}
+                    q = [x for x in (mff.get("marketLevel") or {}).get("bidAskQuote", []) if x]
+                    asks = [(x["askP"], int(x.get("askQ", 0) or 0)) for x in q if x.get("askP")]
+                    bids = [(x["bidP"], int(x.get("bidQ", 0) or 0)) for x in q if x.get("bidP")]
+                    out.append({"rx": j["rx"], "key": k, "asks": asks, "bids": bids, "ltp": (mff.get("ltpc") or {}).get("ltp")})
+    f.parent.mkdir(parents=True, exist_ok=True)
+    with f.open("w", encoding="utf-8") as h:
+        for r in out:
+            h.write(json.dumps(r) + "\n")
+    log(f"ticks: {name} -> {len(out):,} VI snapshots")
+    return out
+
+
 # ---------------------------------------------------------------- money
 def charges(kind, side, value):
     brk = S["brokerage_per_order"]
@@ -167,6 +228,53 @@ class Bot:
         self.hol = holidays(st)
         self.cons = contracts(st)
         self.slip = S["slip_paise"] / 100
+        self.ticks_on = bool(os.environ.get("TICKS_KEY"))
+        if not self.ticks_on:
+            log("TICKS_KEY not set: fills outside the auction use minute candles")
+        self._ticks = {}
+
+    # ---- tick-exact fills
+    def ticks(self, d):
+        """All VI snapshots (shares + futures) the recorder has for day d so far."""
+        if not self.ticks_on:
+            return []
+        if d in self._ticks:
+            return self._ticks[d]
+        keys = {S["equity_key"]} | {c["key"] for c in self.cons}
+        snaps = []
+        try:
+            for name, url in tick_assets(d):
+                snaps += load_tick_asset(name, url, keys)
+        except Exception as e:
+            log("ticks not available:", e)
+        snaps.sort(key=lambda s: s["rx"])
+        self._ticks[d] = snaps
+        return snaps
+
+    def tick_buy(self, d, key, hm, qty):
+        """Buy `qty` at the best asks of the first snapshot at/after HH:MM:00 (within max_gap_seconds),
+        walking the visible depth. Returns (avg price, time, note) or None if the recorder has no such snapshot."""
+        t0 = datetime.combine(d, datetime.strptime(hm, "%H:%M").time(), IST).timestamp()
+        cand = [s for s in self.ticks(d) if s["key"] == key and t0 <= s["rx"] <= t0 + S["ticks"]["max_gap_seconds"] and s["asks"]]
+        if not cand:
+            return None
+        s = cand[0]
+        left, cost = qty, 0.0
+        for p, q in s["asks"]:
+            take = min(left, q); cost += take * p; left -= take
+            if left <= 0:
+                break
+        note = ""
+        if left > 0:
+            cost += left * (s["asks"][-1][0] + 0.01)
+            note = "; part beyond the visible depth priced 1 paisa worse"
+        when = datetime.fromtimestamp(s["rx"], IST).strftime("%H:%M:%S")
+        return cost / qty, when, f"tick best ask at {when} (ask {s['asks'][0][0]} x {s['asks'][0][1]:,}){note}"
+
+    def waiting(self, part):
+        """True while it is still worth waiting for today's recorder file."""
+        until = datetime.strptime(S["ticks"]["wait_for_ticks_until"][part], "%H:%M").time()
+        return self.ticks_on and self.today == datetime.now(IST).date() and self.now.time() < until
 
     def trading(self, d):
         return d.weekday() < 5 and d.isoformat() not in self.hol
@@ -202,6 +310,26 @@ class Bot:
         o_min, c_min = S["short_entry_minute"], S["short_cover_minute"]
         if o_min not in eq or c_min not in eq:
             return False
+        # Plan B decision first (it may have to wait for the recorder's ticks before anything is booked)
+        pd_ = self.prev_tday(d)
+        prev = candles(S["equity_key"], pd_, self.today) if pd_ else {}
+        b = None
+        if prev:
+            pc = prev[max(prev)][3]
+            o = eq[o_min][0]
+            gap = (o / pc - 1) * 100
+            if gap >= S["gap_threshold_pct"]:
+                notional = min(S["short_leverage"] * m["equity"]["B"], S["short_cap_rs"])
+                qty = int(notional // o)
+                tb = self.tick_buy(d, S["equity_key"], c_min, qty)
+                if tb is None and self.waiting("morning"):
+                    log("B: gap-up day, waiting for the recorder's 09:16 ticks")
+                    return False
+                if tb:
+                    x, when, how = tb
+                else:
+                    x, how = eq[c_min][0] + self.slip, f"no ticks: {c_min} minute open + {S['slip_paise']} paisa"
+                b = dict(pc=pc, o=o, gap=gap, qty=qty, x=x, how=how)
         pos = m["open"]
         if pos and pos["date"] < str(d):
             fc = candles(pos["key"], d, self.today)
@@ -218,29 +346,24 @@ class Bot:
             net = gross - ch
             m["equity"]["A"] += net
             st.add_trade(dict(plan="A overnight", date=pos["date"], instrument=pos["symbol"], side="long", qty=qty,
-                              entry_time="15:00-15:29 avg", entry=round(pos["entry"], 4), exit_date=str(d), exit_time=first,
+                              entry_time=pos.get("entry_time", ""), entry=round(pos["entry"], 4), exit_date=str(d), exit_time=first,
                               exit=px, gross_rs=round(gross), charges_rs=round(ch), net_rs=round(net),
-                              net_bps=round(net / (pos["entry"] * qty) * 1e4, 1), equity_after=round(m["equity"]["A"]), note=note))
+                              net_bps=round(net / (pos["entry"] * qty) * 1e4, 1), equity_after=round(m["equity"]["A"]),
+                              note=f"bought: {pos.get('how', '')}; sold: {note}"))
             log(f"A: sold {qty:,} {pos['symbol']} at {px} (bought {pos['entry']:.4f}) net Rs {net:,.0f}")
             m["open"] = None
-        # gap-up short
-        pd_ = self.prev_tday(d)
-        prev = candles(S["equity_key"], pd_, self.today) if pd_ else {}
+        # gap-up short (decided above)
         if not prev:
             st.alert(f"noprev-{d}", f"Could not find VI's previous close before {d}; gap-up check skipped.")
             m["last_morning"] = str(d)
             m["_gap"] = None
             return True
-        pc = prev[max(prev)][3]
-        o = eq[o_min][0]
+        pc, o = prev[max(prev)][3], eq[o_min][0]
         gap = (o / pc - 1) * 100
         m["_gap"] = round(gap, 2)
         m["_btrade"] = False
-        if gap >= S["gap_threshold_pct"]:
-            eqB = m["equity"]["B"]
-            notional = min(S["short_leverage"] * eqB, S["short_cap_rs"])
-            qty = int(notional // o)
-            x = eq[c_min][0] + self.slip
+        if b:
+            qty, x = b["qty"], b["x"]
             gross = (o - x) * qty
             ch = charges("cash", "sell", o * qty) + charges("cash", "buy", x * qty)
             net = gross - ch
@@ -250,8 +373,8 @@ class Bot:
                               entry_time=o_min, entry=o, exit_date=str(d), exit_time=c_min, exit=round(x, 4),
                               gross_rs=round(gross), charges_rs=round(ch), net_rs=round(net),
                               net_bps=round(net / (o * qty) * 1e4, 1), equity_after=round(m["equity"]["B"]),
-                              note=f"gap {gap:+.2f}% (prev {pc}, open {o})"))
-            log(f"B: gap {gap:+.2f}% -> shorted {qty:,} at {o}, covered {x:.4f}, net Rs {net:,.0f}")
+                              note=f"gap {gap:+.2f}% (prev {pc}; limit {pc * (1 + S['gap_threshold_pct'] / 100):.2f}; auction {o}); covered: {b['how']}"))
+            log(f"B: gap {gap:+.2f}% -> shorted {qty:,} at {o}, covered {x:.4f} ({b['how']}), net Rs {net:,.0f}")
         else:
             log(f"B: gap {gap:+.2f}% below {S['gap_threshold_pct']}% -> no trade")
         m["last_morning"] = str(d)
@@ -265,25 +388,33 @@ class Bot:
             st.alert(f"nocontract-{d}", "No VI futures contract found in Upstox's instrument list.")
             return False
         fc = candles(c["key"], d, self.today)
-        a, b = S["overnight_entry_window"]
-        if b not in fc:
+        hm = S["overnight_entry_minute"]
+        if hm not in fc:
             if self.now.time() >= datetime.strptime("16:30", "%H:%M").time() or d < self.today:
-                st.alert(f"noentry-{d}", f"No {c['symbol']} candle at {b} on {d}; overnight entry skipped.")
+                st.alert(f"noentry-{d}", f"No {c['symbol']} candle at {hm} on {d}; overnight entry skipped.")
                 return self._end_day(d, None)
             return False
-        px = vwap(fc, a, b) + self.slip
+        est = fc[hm][0]
         lot = c["lot"]
         eqA = m["equity"]["A"]
-        lot_margin = S["fut_margin_frac"] * px * lot
+        lot_margin = S["fut_margin_frac"] * est * lot
         lots = 0
         if eqA >= lot_margin:
-            lots = max(1, min(int(eqA // lot_margin), round(eqA / ((S["fut_margin_frac"] + S["lot_cushion_frac"]) * px * lot))))
+            lots = max(1, min(int(eqA // lot_margin), round(eqA / ((S["fut_margin_frac"] + S["lot_cushion_frac"]) * est * lot))))
         else:
             st.alert(f"lowcap-{d}", f"Plan A account Rs {eqA:,.0f} is below one lot's margin (Rs {lot_margin:,.0f}); no overnight position.")
         if lots:
+            tb = self.tick_buy(d, c["key"], hm, lots * lot)
+            if tb is None and self.waiting("evening"):
+                log(f"A: waiting for the recorder's {hm} ticks")
+                return False
+            if tb:
+                px, when, how = tb
+            else:
+                px, when, how = est + self.slip, hm, f"no ticks: {hm} minute open + {S['slip_paise']} paisa"
             m["open"] = {"date": str(d), "key": c["key"], "symbol": c["symbol"], "lot": lot, "lots": lots,
-                         "qty": lots * lot, "entry": px}
-            log(f"A: bought {lots} lot(s) = {lots * lot:,} {c['symbol']} at {px:.4f} (15:00-15:29 average + spread)")
+                         "qty": lots * lot, "entry": px, "entry_time": when, "how": how}
+            log(f"A: bought {lots} lot(s) = {lots * lot:,} {c['symbol']} at {px:.4f} ({how})")
         return self._end_day(d, c if lots else None, lots)
 
     def _end_day(self, d, c, lots=0):

@@ -40,9 +40,9 @@
   <div class="panel"><h3>Trades (newest first)</h3><div class="scroll"><table id="tr"></table></div></div>
   <div class="panel"><h3>What the research expects</h3><div id="ref"></div></div>
   <div class="panel"><h3>Rules</h3>
-    <p><span class="tag ta">A</span> <b>Overnight futures</b>: buy VI's current-month future at the 15:00–15:29 average price (+½ paisa), sell at the next 09:15 pre-open auction price. As many lots as ₹ allows with a cushion. Switch to next month 2 trading days before expiry.</p>
-    <p><span class="tag tb">B</span> <b>Gap-up auction short</b>: if VI's 09:15 auction open is ≥ 1% above yesterday's last price, short 5× the account (max ₹50 lakh) at the auction price, buy back at the 09:16 price (+½ paisa).</p>
-    <p>Both start with ₹5 lakh and compound. All charges per order. Prices come from Upstox 1-minute candles.</p>
+    <p><span class="tag ta">A</span> <b>Overnight futures</b>: buy VI's future in one order at 15:25 (real best ask from the tick recorder), sell at the next 09:15 pre-open auction price. As many lots as ₹ allows with a cushion. Switch to next month when fewer than 5 trading days are left before expiry.</p>
+    <p><span class="tag tb">B</span> <b>Gap-up auction short</b>: a limit sell at yesterday's last price × 1.01 in the 09:00–09:08 pre-open; it fills only if the auction price is that high, and then at the auction price. Short 5× the account (max ₹50 lakh), buy back at 09:16 (real best ask from the tick recorder).</p>
+    <p>Both start with ₹5 lakh and compound. All charges per order. Auction prices from Upstox 1-minute candles; other fills from recorded ticks (minute price + ½ paisa only if the recorder missed it, noted on the trade).</p>
   </div>
   <p class="foot">Research on past data / paper trading only, not investment advice.</p>
 </main>

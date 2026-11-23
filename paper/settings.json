@@ -1,52 +1,44 @@
 {
   "_about": "Rules for the Vodafone Idea paper trader. Paper trading only: no orders are ever sent. Approved by the owner on 23 Nov 2026.",
-
-  "start_date": "2026-11-24",
-  "_start_date_note": "First trading day the bot trades (India time).",
-
+  "start_date": "2026-11-23",
+  "_start_date_note": "First trading day (India time). Started 23 Nov 2026 so the first overnight holds over the 24 Nov holiday.",
   "underlying": "IDEA",
   "equity_key": "NSE_EQ|INE669E01016",
   "_equity_key_note": "Upstox key for Vodafone Idea shares (ISIN INE669E01016). Candles come from Upstox's public 1-minute API, no login.",
-
   "capital_overnight": 500000,
   "capital_gapshort": 500000,
   "_capital_note": "Each plan starts with Rs 5 lakh and keeps its own account. Profits and losses compound into the next trade.",
-
-  "overnight_entry_window": ["15:00", "15:29"],
-  "_overnight_entry_note": "Plan A buys the VI future at the volume-weighted average price of these 1-minute candles (how NSE sets the closing price), plus slip_paise.",
+  "overnight_entry_minute": "15:25",
+  "_overnight_entry_note": "Plan A buys all its lots in one order at 15:25 (a lot cannot be split, so no averaging). Price = the real best ask from the tick recorder at 15:25:00, walking the visible depth; if the recorder has no ticks, the 15:25 minute's open + slip_paise.",
   "overnight_exit_minute": "09:15",
   "_overnight_exit_note": "Plan A sells at the opening price of this minute = the pre-open auction price. No spread is charged in the auction.",
-  "roll_trading_days": 2,
-  "_roll_note": "Hold the nearest expiry until fewer than this many trading days are left after today, then use the next month (both are in the futures pre-open auction).",
+  "roll_trading_days": 5,
+  "_roll_note": "Hold the nearest expiry until fewer than 5 trading days are left after today, then the next month (owner's rule, 23 Nov 2026; next month is in the futures pre-open auction during those days).",
   "fut_margin_frac": 0.43,
   "_fut_margin_note": "Upstox margin for one VI futures lot on 23 Nov 2026 = 43% of its value (includes VI's extra 15% exposure margin).",
   "lot_cushion_frac": 0.137,
   "_lot_cushion_note": "Extra cash kept per lot, as a share of the lot's value (Rs 1.2 lakh on today's lot = the worst run of losses in the backtest). Lots = what the account can carry with this cushion; at least 1 lot if the account covers the margin.",
-
   "gap_threshold_pct": 1.0,
   "_gap_threshold_note": "Plan B shorts only if VI's auction open is at least this % above yesterday's last price.",
   "short_entry_minute": "09:15",
   "short_cover_minute": "09:16",
-  "_short_minutes_note": "Short at the 09:15 opening (auction) price, buy back at the opening price of the 09:16 minute plus slip_paise.",
+  "_short_minutes_note": "Real-bot rule: a LIMIT sell at yesterday's last price x 1.01 placed in the 09:00-09:08 pre-open; it fills only if the auction price is at or above that, and then at the auction price (= the 09:15 opening price). Buy back at 09:16: the real best ask from the tick recorder at 09:16:00 walking the visible depth; if no ticks, the 09:16 minute's open + slip_paise.",
   "short_leverage": 5.0,
   "_short_leverage_note": "Upstox intraday margin for VI is 19.6%, so the short is 5 x the account.",
   "short_cap_rs": 5000000,
   "_short_cap_note": "Largest short, Rs 50 lakh: about 6% of what VI trades in the 09:16 minute on gap-up days, so our own order would not move the price much.",
-
   "slip_paise": 0.5,
   "_slip_note": "Half of VI's usual 1-paisa bid-ask spread, paid on every fill outside the auction.",
-
   "brokerage_per_order": 20,
   "stt_fut_sell": 0.0005,
   "stt_intraday_sell": 0.00025,
-  "txn_fut": 0.0000173,
-  "txn_equity": 0.0000297,
-  "stamp_fut_buy": 0.00002,
-  "stamp_intraday_buy": 0.00003,
-  "sebi": 0.000001,
+  "txn_fut": 1.73e-05,
+  "txn_equity": 2.97e-05,
+  "stamp_fut_buy": 2e-05,
+  "stamp_intraday_buy": 3e-05,
+  "sebi": 1e-06,
   "gst": 0.18,
   "_charges_note": "Per order: Rs 20 brokerage, STT on the sell side, exchange fee, stamp duty on the buy side, SEBI fee, 18% GST on brokerage + exchange fee.",
-
   "backtest_reference": {
     "overnight_last12m_pct": 58,
     "gapshort_last12m_pct": 61,
@@ -54,5 +46,14 @@
     "gapshort_net_bps_per_trade_2026": 41,
     "gapup_days_per_month": 2.5,
     "_note": "What the research expects (Nov 2025 - Nov 2026 replay on today's terms). The paper test checks whether this still holds."
+  },
+  "ticks": {
+    "recorder_repo": "AjBhutada/upstox-tick-recorder",
+    "wait_for_ticks_until": {
+      "morning": "13:30",
+      "evening": "18:00"
+    },
+    "max_gap_seconds": 60,
+    "_note": "Fills outside the auction come from the tick recorder's encrypted daily files (needs the TICKS_KEY secret). The bot waits for them until these times, then falls back to minute candles and says so in the trade note."
   }
 }
