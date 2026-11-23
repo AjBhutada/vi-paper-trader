@@ -5,9 +5,9 @@
   "result": "OK - orders logged only",
   "lines": [
    "Connected to the live Upstox feed at 15:15:29.",
-   "Plan A account ₹5,00,000 → 1 lot(s) of IDEA FUT 29 DEC 26 (71,475 shares).",
+   "Plan A account ₹5,00,000 → 1 lot(s) of IDEA FUT 29 DEC 26 (71,475 shares); last price ₹12.01.",
    "At 15:25:00 the best price to buy was ₹12.01 (10,72,125 available).",
-   "15:25:00 Plan A buy: buy 71,475 IDEA FUT 29 DEC 26, market order → logged only (sandbox token not added yet)"
+   "15:25:00 Plan A market buy: buy 71,475 IDEA FUT 29 DEC 26, market order → logged only (sandbox token not added yet)"
   ],
   "raw": [
    {

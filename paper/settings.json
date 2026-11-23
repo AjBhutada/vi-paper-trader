@@ -9,7 +9,7 @@
   "capital_gapshort": 500000,
   "_capital_note": "Each plan starts with Rs 5 lakh and keeps its own account. Profits and losses compound into the next trade.",
   "overnight_entry_minute": "15:25",
-  "_overnight_entry_note": "Plan A buys all its lots in one order at 15:25 (a lot cannot be split, so no averaging). Price = the real best ask from the tick recorder at 15:25:00, walking the visible depth; if the recorder has no ticks, the 15:25 minute's open + slip_paise.",
+  "_overnight_entry_note": "Fallback minute for Plan A's buy (see limit_orders): if the 15:20 limit is not filled, market buy at the best ask at 15:25:00.",
   "overnight_exit_minute": "09:15",
   "_overnight_exit_note": "Plan A sells at the opening price of this minute = the pre-open auction price. No spread is charged in the auction.",
   "roll_trading_days": 5,
@@ -22,7 +22,7 @@
   "_gap_threshold_note": "Plan B shorts only if VI's auction open is at least this % above yesterday's last price.",
   "short_entry_minute": "09:15",
   "short_cover_minute": "09:16",
-  "_short_minutes_note": "Real-bot rule: a LIMIT sell at yesterday's last price x 1.01 placed in the 09:00-09:08 pre-open; it fills only if the auction price is at or above that, and then at the auction price (= the 09:15 opening price). Buy back at 09:16: the real best ask from the tick recorder at 09:16:00 walking the visible depth; if no ticks, the 09:16 minute's open + slip_paise.",
+  "_short_minutes_note": "Real-bot rule: a LIMIT sell at yesterday's last price x 1.01 placed in the 09:00-09:08 pre-open; it fills only if the auction price is at or above that, at the auction price. Buy-back: see limit_orders (limit at 09:16, market at 09:17).",
   "short_leverage": 5.0,
   "_short_leverage_note": "Upstox intraday margin for VI is 19.6%, so the short is 5 x the account.",
   "short_cap_rs": 5000000,
@@ -55,5 +55,13 @@
     },
     "max_gap_seconds": 60,
     "_note": "Fills outside the auction come from the tick recorder's encrypted daily files (needs the TICKS_KEY secret). The bot waits for them until these times, then falls back to minute candles and says so in the trade note."
+  },
+  "limit_orders": {
+    "offset_paise": 1,
+    "A_place": "15:20",
+    "A_fallback": "15:25",
+    "B_place": "09:16",
+    "B_fallback": "09:17",
+    "_note": "Owner's rule from 23 Nov 2026 (research: +4.3 bps/night for A, +4.6 bps/trade for B). Plan A: at 15:20 a limit buy 1 paisa below the last traded price; filled only if the market later trades BELOW it (so we are surely filled even at the back of the queue); if not filled by 15:25, market buy at 15:25 (best ask). Plan B buy-back: same at 09:16, market at 09:17."
   }
 }

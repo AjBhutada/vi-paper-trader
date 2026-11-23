@@ -271,6 +271,38 @@ class Bot:
         when = datetime.fromtimestamp(s["rx"], IST).strftime("%H:%M:%S")
         return cost / qty, when, f"tick best ask at {when} (ask {s['asks'][0][0]} x {s['asks'][0][1]:,}){note}"
 
+    def limit_then_market(self, d, key, place_hm, fallback_hm, qty):
+        """Limit buy at (last traded price at place_hm - 1 paisa); FILLED only if the market later trades below it
+        before fallback_hm; otherwise market buy at fallback_hm (best ask, walking depth).
+        Returns (price, time, how) or None if the recorder has no ticks for this."""
+        off = S["limit_orders"]["offset_paise"] / 100
+        t0 = datetime.combine(d, datetime.strptime(place_hm, "%H:%M").time(), IST).timestamp()
+        t1 = datetime.combine(d, datetime.strptime(fallback_hm, "%H:%M").time(), IST).timestamp()
+        snaps = [s for s in self.ticks(d) if s["key"] == key and s.get("ltp")]
+        first = [s for s in snaps if t0 <= s["rx"] <= t0 + S["ticks"]["max_gap_seconds"]]
+        if not first:
+            return None
+        ref = first[0]["ltp"]
+        p = round(ref - off, 2)
+        hit = next((s for s in snaps if t0 <= s["rx"] < t1 and s["ltp"] <= p - 0.01 + 1e-9), None)
+        if hit:
+            when = datetime.fromtimestamp(hit["rx"], IST).strftime("%H:%M:%S")
+            return p, when, f"limit {p:.2f} (1 paisa below {ref}) placed {place_hm}, filled {when} when it traded at {hit['ltp']}"
+        tb = self.tick_buy(d, key, fallback_hm, qty)
+        if not tb:
+            return None
+        return tb[0], tb[1], f"limit {p:.2f} not filled by {fallback_hm}; market: {tb[2]}"
+
+    def minute_limit(self, cs, place_hm, fallback_hm):
+        """Same rule on 1-minute candles (used only if the recorder has no ticks)."""
+        if place_hm not in cs or fallback_hm not in cs:
+            return None
+        p = round(cs[place_hm][0] - S["limit_orders"]["offset_paise"] / 100, 2)
+        lows = [v[2] for k, v in cs.items() if place_hm <= k < fallback_hm]
+        if lows and min(lows) <= p - 0.01 + 1e-9:
+            return p, place_hm, f"no ticks: minute rule, limit {p:.2f} filled"
+        return cs[fallback_hm][0] + self.slip, fallback_hm, f"no ticks: limit {p:.2f} not filled; {fallback_hm} minute open + {S['slip_paise']} paisa"
+
     def waiting(self, part):
         """True while it is still worth waiting for today's recorder file."""
         until = datetime.strptime(S["ticks"]["wait_for_ticks_until"][part], "%H:%M").time()
@@ -321,15 +353,18 @@ class Bot:
             if gap >= S["gap_threshold_pct"]:
                 notional = min(S["short_leverage"] * m["equity"]["B"], S["short_cap_rs"])
                 qty = int(notional // o)
-                tb = self.tick_buy(d, S["equity_key"], c_min, qty)
+                L = S["limit_orders"]
+                tb = self.limit_then_market(d, S["equity_key"], L["B_place"], L["B_fallback"], qty)
                 if tb is None and self.waiting("morning"):
-                    log("B: gap-up day, waiting for the recorder's 09:16 ticks")
+                    log("B: gap-up day, waiting for the recorder's 09:16-09:17 ticks")
                     return False
+                if tb is None:
+                    tb = self.minute_limit(eq, L["B_place"], L["B_fallback"])
                 if tb:
                     x, when, how = tb
                 else:
-                    x, how = eq[c_min][0] + self.slip, f"no ticks: {c_min} minute open + {S['slip_paise']} paisa"
-                b = dict(pc=pc, o=o, gap=gap, qty=qty, x=x, how=how)
+                    x, when, how = eq[c_min][0] + self.slip, c_min, f"no ticks: {c_min} minute open + {S['slip_paise']} paisa"
+                b = dict(pc=pc, o=o, gap=gap, qty=qty, x=x, how=how, when=when)
         pos = m["open"]
         if pos and pos["date"] < str(d):
             fc = candles(pos["key"], d, self.today)
@@ -370,7 +405,7 @@ class Bot:
             m["equity"]["B"] += net
             m["_btrade"] = True
             st.add_trade(dict(plan="B gap-up short", date=str(d), instrument="IDEA shares (MIS)", side="short", qty=qty,
-                              entry_time=o_min, entry=o, exit_date=str(d), exit_time=c_min, exit=round(x, 4),
+                              entry_time=o_min, entry=o, exit_date=str(d), exit_time=b.get("when", c_min), exit=round(x, 4),
                               gross_rs=round(gross), charges_rs=round(ch), net_rs=round(net),
                               net_bps=round(net / (o * qty) * 1e4, 1), equity_after=round(m["equity"]["B"]),
                               note=f"gap {gap:+.2f}% (prev {pc}; limit {pc * (1 + S['gap_threshold_pct'] / 100):.2f}; auction {o}); covered: {b['how']}"))
@@ -394,7 +429,8 @@ class Bot:
                 st.alert(f"noentry-{d}", f"No {c['symbol']} candle at {hm} on {d}; overnight entry skipped.")
                 return self._end_day(d, None)
             return False
-        est = fc[hm][0]
+        L = S["limit_orders"]
+        est = fc[L["A_place"]][0] if L["A_place"] in fc else fc[hm][0]
         lot = c["lot"]
         eqA = m["equity"]["A"]
         lot_margin = S["fut_margin_frac"] * est * lot
@@ -404,14 +440,16 @@ class Bot:
         else:
             st.alert(f"lowcap-{d}", f"Plan A account Rs {eqA:,.0f} is below one lot's margin (Rs {lot_margin:,.0f}); no overnight position.")
         if lots:
-            tb = self.tick_buy(d, c["key"], hm, lots * lot)
+            tb = self.limit_then_market(d, c["key"], L["A_place"], L["A_fallback"], lots * lot)
             if tb is None and self.waiting("evening"):
-                log(f"A: waiting for the recorder's {hm} ticks")
+                log(f"A: waiting for the recorder's {L['A_place']}-{L['A_fallback']} ticks")
                 return False
+            if tb is None:
+                tb = self.minute_limit(fc, L["A_place"], L["A_fallback"])
             if tb:
                 px, when, how = tb
             else:
-                px, when, how = est + self.slip, hm, f"no ticks: {hm} minute open + {S['slip_paise']} paisa"
+                px, when, how = fc[hm][0] + self.slip, hm, f"no ticks: {hm} minute open + {S['slip_paise']} paisa"
             m["open"] = {"date": str(d), "key": c["key"], "symbol": c["symbol"], "lot": lot, "lots": lots,
                          "qty": lots * lot, "entry": px, "entry_time": when, "how": how}
             log(f"A: bought {lots} lot(s) = {lots * lot:,} {c['symbol']} at {px:.4f} ({how})")

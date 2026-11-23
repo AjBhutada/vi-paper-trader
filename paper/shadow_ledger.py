@@ -43,6 +43,12 @@ def _orders(events):
     return st
 
 
+def _leg(st, label):
+    """status of a leg that may be a limit order followed by a market order"""
+    parts = [x for x in (st.get(label + "-limit"), st.get(label + "-limit cancel"), st.get(label)) if x]
+    return " → ".join(parts) if parts else "-"
+
+
 def _fills(events):
     f = {}
     for e in events:
@@ -86,7 +92,7 @@ def build(paper_open=None):
         p = pA.get(d)
         r = {"plan": "A", "date": d, "exit_date": sell_day or "", "qty": fb["qty"], "instrument": fb.get("symbol"),
              "shadow_entry": fb["price"], "shadow_exit": sell["price"] if sell else None,
-             "orders": "; ".join(x for x in (f"buy: {_orders(ev).get('A-buy', '-')}", f"sell: {sell_orders.get('A-sell', '-')}" if sell_day else "") if x)}
+             "orders": "; ".join(x for x in (f"buy: {_leg(_orders(ev), 'A-buy')}", f"sell: {sell_orders.get('A-sell', '-')}" if sell_day else "") if x)}
         if sell and sell["price"] and fb["price"]:
             q = fb["qty"]
             r["shadow_net"] = round((sell["price"] - fb["price"]) * q - vb.charges("fut", "buy", fb["price"] * q) - vb.charges("fut", "sell", sell["price"] * q))
@@ -109,7 +115,7 @@ def build(paper_open=None):
         s, c = f["B-short"], f.get("B-cover")
         r = {"plan": "B", "date": d, "exit_date": d, "qty": s["qty"], "instrument": "IDEA shares (MIS)",
              "shadow_entry": s["price"], "shadow_exit": c["price"] if c else None,
-             "orders": f"short: {_orders(ev).get('B-limit-short', '-')}; cover: {_orders(ev).get('B-cover', '-')}"}
+             "orders": f"short: {_orders(ev).get('B-limit-short', '-')}; cover: {_leg(_orders(ev), 'B-cover')}"}
         if c and c["price"]:
             q = s["qty"]
             r["shadow_net"] = round((s["price"] - c["price"]) * q - vb.charges("cash", "sell", s["price"] * q) - vb.charges("cash", "buy", c["price"] * q))

@@ -67,6 +67,7 @@ class Feed:
     def __init__(self, keys, log):
         import upstox_client
         self.snap, self.log, self.n = {}, log, 0
+        self.low = {}                                       # lowest traded price per key since reset_low()
         self.lock = threading.Lock()
         cfg = upstox_client.Configuration()
         cfg.access_token = os.environ["UPSTOX_ACCESS_TOKEN"]
@@ -98,11 +99,46 @@ class Feed:
                                 "bid": [(x.get("bidP"), int(x.get("bidQ", 0) or 0)) for x in q if x.get("bidP")],
                                 "ask": [(x.get("askP"), int(x.get("askQ", 0) or 0)) for x in q if x.get("askP")],
                                 "open": ohlc[0].get("open") if ohlc else None, "vtt": mff.get("vtt")}
+                ltp = self.snap[k]["ltp"]
+                if ltp and k in self.low:
+                    self.low[k] = min(self.low[k], ltp)
                 self.n += 1
+
+    def reset_low(self, k):
+        with self.lock:
+            self.low[k] = float("inf")
+
+    def lowest(self, k):
+        with self.lock:
+            return self.low.get(k, float("inf"))
 
     def get(self, k):
         with self.lock:
             return dict(self.snap.get(k) or {})
+
+
+def limit_then_market(clock, feed, orders, log, key, qty, product, label, fallback_hms):
+    """Live version of the limit rule: limit buy 1 paisa below the last traded price NOW; counted filled only if the
+    market trades below it before `fallback_hms`; otherwise cancel it and send a market buy then.
+    Logs a 'fill' event {leg: label, price, qty, how}."""
+    off = S["limit_orders"]["offset_paise"] / 100
+    s = feed.get(key)
+    ref = s.get("ltp") or (s.get("ask") or [(None, 0)])[0][0]
+    p = round(ref - off, 2)
+    feed.reset_low(key)
+    lid = orders.place(label + "-limit", key, "BUY", qty, "LIMIT", product, p)
+    target = datetime.combine(clock.now().date(), datetime.strptime(fallback_hms, "%H:%M:%S").time(), IST)
+    while clock.now() < target:
+        if feed.lowest(key) <= p - 0.01 + 1e-9:
+            log("fill", {"leg": label, "price": p, "qty": qty, "how": f"limit {p:.2f} (1 paisa below {ref}) filled when it traded at {feed.lowest(key)}"})
+            return
+        time.sleep(0.2)
+    orders.cancel(label + "-limit", lid)
+    s = feed.get(key)
+    log("quote", {"leg": label, "best_ask": s.get("ask", [None])[:3], "ltp": s.get("ltp")})
+    orders.place(label, key, "BUY", qty, "MARKET", product)
+    log("fill", {"leg": label, "price": walk(s.get("ask"), qty), "qty": qty,
+                 "how": f"limit {p:.2f} not filled by {fallback_hms[:5]}; market buy at the best ask"})
 
 
 class Orders:
@@ -238,12 +274,9 @@ def main():
             log("fill", {"leg": "A-sell", "price": fs.get("open"), "qty": pos["qty"], "symbol": pos["symbol"], "bought_on": pos["date"]})
         if o and o >= limit:
             log("fill", {"leg": "B-short", "price": o, "qty": qty_b, "limit": limit, "prev_last": last})
-            clock.wait_until("09:16:00")
-            s = feed.get(EQ)
-            log("cover_quote", {"best_ask": s.get("ask", [None])[:3], "ltp": s.get("ltp")})
-            orders.place("B-cover", EQ, "BUY", qty_b, "MARKET", "I")
-            log("fill", {"leg": "B-cover", "price": walk(s.get("ask"), qty_b), "qty": qty_b,
-                         "quote_age_s": round(time.time() - s["rx"], 2) if s.get("rx") else None})
+            L = S["limit_orders"]
+            clock.wait_until(L["B_place"] + ":00")
+            limit_then_market(clock, feed, orders, log, EQ, qty_b, "I", "B-cover", L["B_fallback"] + ":00")
         else:
             log("fill", {"leg": "B-none", "open": o, "limit": limit})
             orders.cancel("B-limit-short", b_id)
@@ -258,9 +291,10 @@ def main():
             log("missed", "started after 15:25; nothing sent today")
             return finish(day, a.part, events, st)
         feed = Feed({c["key"]}, log); feed.start()
-        clock.wait_until("15:24:55")
+        L = S["limit_orders"]
+        clock.wait_until(L["A_place"] + ":00")
         s = feed.get(c["key"])
-        est = (s.get("ask") or [(s.get("ltp"), 0)])[0][0] or s.get("ltp")
+        est = s.get("ltp") or (s.get("ask") or [(None, 0)])[0][0]
         eqA = m["equity"]["A"]
         lot = c["lot"]
         margin = S["fut_margin_frac"] * est * lot if est else None
@@ -268,13 +302,8 @@ def main():
         if margin and eqA >= margin:
             lots = max(1, min(int(eqA // margin), round(eqA / ((S["fut_margin_frac"] + S["lot_cushion_frac"]) * est * lot))))
         log("plan", {"contract": c["symbol"], "lot": lot, "lots": lots, "equity_A": round(eqA), "est_price": est})
-        clock.wait_until("15:25:00")
-        s = feed.get(c["key"])
-        log("buy_quote", {"best_ask": s.get("ask", [None])[:3], "ltp": s.get("ltp"), "age_s": round(time.time() - s["rx"], 2) if s.get("rx") else None})
         if lots:
-            orders.place("A-buy", c["key"], "BUY", lots * lot, "MARKET", "D")
-            log("fill", {"leg": "A-buy", "price": walk(s.get("ask"), lots * lot), "qty": lots * lot, "symbol": c["symbol"],
-                         "key": c["key"], "quote_age_s": round(time.time() - s["rx"], 2) if s.get("rx") else None})
+            limit_then_market(clock, feed, orders, log, c["key"], lots * lot, "D", "A-buy", L["A_fallback"] + ":00")
         time.sleep(2)
         feed.stop()
     log("feed_stats", {"messages": feed.n})
@@ -365,27 +394,30 @@ def summarize(js):
             lines.append(f"09:15 auction: VI opened at ₹{a.get('VI_open')} — the ₹{a.get('B_limit'):.2f} limit was "
                          + ("REACHED, so the short filled at the auction price." if reached else "not reached, so no short today."))
         if "B-cover" in fills:
-            t = order_text("B-cover", "Plan B buy-back")
-            if t:
-                lines.append(t)
-            lines.append(f"Bought back at ₹{fills['B-cover'].get('price')} (best price to buy at 09:16:00).")
-        if any(e["what"] in ("cancel_sent", "cancel_dry") for e in ev):
+            for lab, what in (("B-cover-limit", "Plan B limit buy-back"), ("B-cover", "Plan B market buy-back")):
+                t = order_text(lab, what)
+                if t:
+                    lines.append(t)
+            f = fills["B-cover"]
+            lines.append(f"Bought back at ₹{f.get('price')}" + (f" — {f['how']}." if f.get("how") else " (best price to buy at 09:16:00)."))
+        if any(e["what"] in ("cancel_sent", "cancel_dry") and det(e).get("label") == "B-limit-short" for e in ev):
             lines.append("Unfilled limit short cancelled" + (" (logged only)." if get("cancel_dry") else " in the sandbox."))
     elif part == "afternoon":
         p = det(get("plan")[0]) if get("plan") else {}
         if p:
             lines.append(f"Plan A account ₹{_inr(p.get('equity_A', 0))} → {p.get('lots')} lot(s) of {p.get('contract')} "
-                         f"({_inr(p.get('lots', 0) * p.get('lot', 0))} shares).")
+                         f"({_inr(p.get('lots', 0) * p.get('lot', 0))} shares); last price ₹{p.get('est_price')}.")
         q = det(get("buy_quote")[0]) if get("buy_quote") else {}
         asks = q.get("best_ask") or []
         if asks:
             lines.append(f"At 15:25:00 the best price to buy was ₹{asks[0][0]} ({_inr(asks[0][1])} available).")
-        t = order_text("A-buy", "Plan A buy")
-        if t:
-            lines.append(t)
+        for lab, what in (("A-buy-limit", "Plan A limit buy"), ("A-buy", "Plan A market buy")):
+            t = order_text(lab, what)
+            if t:
+                lines.append(t)
         fb = next((det(e) for e in get("fill") if det(e).get("leg") == "A-buy"), None)
         if fb:
-            lines.append(f"Bought at ₹{fb.get('price')} (live price at that second).")
+            lines.append(f"Bought at ₹{fb.get('price')}" + (f" — {fb['how']}." if fb.get("how") else " (live price at that second)."))
     if result == "OK" and dry:
         result = "OK - orders logged only"
     elif result == "OK" and get("order_sent"):
