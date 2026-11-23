@@ -148,10 +148,13 @@ class Orders:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("part", choices=["morning", "afternoon", "check"])
+    ap.add_argument("part", choices=["morning", "afternoon", "check", "summary"])
     ap.add_argument("--dry", action="store_true")
     ap.add_argument("--at")
     a = ap.parse_args()
+    if a.part == "summary":
+        write_summary()
+        return
     clock = Clock(a.at)
     day = clock.now().date()
     OUT.mkdir(parents=True, exist_ok=True)
@@ -281,7 +284,12 @@ def main():
 def finish(day, part, events, st):
     f = OUT / f"{day}_{part}.json"
     f.write_text(json.dumps({"day": str(day), "part": part, "events": events}, indent=1, default=str))
-    # short summary for the dashboard: the last 40 key events across days
+    write_summary()
+
+
+def write_summary():
+    """docs/data/shadow.json for the dashboard's session log, rebuilt from ALL session files (so two runs can't clash)."""
+    OUT.mkdir(parents=True, exist_ok=True)
     keep = ("plan", "auction", "cover_quote", "buy_quote", "fill", "order_sent", "order_dry", "order_error", "cancel_sent",
             "cancel_dry", "missed", "skip", "error", "feed_error", "note")
     rows = []

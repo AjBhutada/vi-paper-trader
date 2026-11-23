@@ -21,6 +21,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main          # the latest state, not the commit the run was queued on
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -56,7 +58,17 @@ jobs:
           git config user.name "vi-paper-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           [ -d state/shadow ] && git add -A state/shadow || true
-          [ -f docs/data/shadow.json ] && git add docs/data/shadow.json || true
-          git commit -q -m "VI shadow bot: $(TZ=Asia/Kolkata date +'%F %H:%M')" || echo "Nothing new to save"
-          ok=0; for i in 1 2 3 4; do git pull -q --rebase && git push -q && { ok=1; break; }; git rebase --abort 2>/dev/null; sleep 10; done
+          git commit -q -m "VI shadow bot: $(TZ=Asia/Kolkata date +'%F %H:%M') session log" || echo "Nothing new to save"
+          # the dashboard summary is rebuilt from ALL session files after pulling, so two runs can never clash on it
+          ok=0
+          for i in 1 2 3 4; do
+            git checkout -q -- docs/data/shadow.json 2>/dev/null || true
+            git pull -q --rebase || { git rebase --abort 2>/dev/null; sleep 10; continue; }
+            python paper/shadow.py summary
+            git add docs/data/shadow.json
+            if git commit -q -m "VI shadow bot: session log summary"; then summ=1; else summ=0; fi
+            git push -q && { ok=1; break; }
+            [ "$summ" = 1 ] && git reset -q --hard HEAD~1
+            sleep 10
+          done
           [ "$ok" = 1 ] || { echo "::error::could not save the shadow log"; exit 1; }
