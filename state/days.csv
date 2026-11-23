@@ -1,2 +1,2 @@
-date,equity_A,equity_B,total,A_lots_overnight,A_contract,gap_pct,B_traded,note
-2026-11-23,500000,500000,1000000,1,IDEA FUT 29 DEC 26,0.0,False,
+date,equity_A,equity_B,equity_C,total,A_lots_overnight,A_contract,gap_pct,B_traded,C_trades,note
+2026-11-23,500000,500000,500000,1500000,1,IDEA FUT 29 DEC 26,0.0,False,,

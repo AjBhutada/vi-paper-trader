@@ -2,7 +2,8 @@
  "start_date": "2026-11-23",
  "equity": {
   "A": 500000,
-  "B": 500000
+  "B": 500000,
+  "C": 500000
  },
  "last_morning": "2026-11-23",
  "last_evening": "2026-11-23",
@@ -18,7 +19,7 @@
   "how": "tick best ask at 15:25:01 (ask 12.01 x 1,072,125)"
  },
  "alerted": {},
- "last_run": "2026-11-23T18:18+05:30",
+ "last_run": "2026-11-23T19:59+05:30",
  "holidays": {
   "fetched": "2026-11-23",
   "days": [
@@ -63,5 +64,22 @@
  },
  "contracts_fetched": "2026-11-23",
  "_gap": 0.0,
- "_btrade": false
+ "_btrade": false,
+ "last_c": null,
+ "start_c": "2026-11-25",
+ "eq_keys": {
+  "VMM": "NSE_EQ|INE01EA01019",
+  "TATASTEEL": "NSE_EQ|INE081A01020",
+  "WAAREEENER": "NSE_EQ|INE377N01017",
+  "VEDL": "NSE_EQ|INE205A01025",
+  "MAXHEALTH": "NSE_EQ|INE027H01010",
+  "IDEA": "NSE_EQ|INE669E01016",
+  "ONGC": "NSE_EQ|INE213A01029",
+  "RELIANCE": "NSE_EQ|INE002A01018",
+  "GODFRYPHLP": "NSE_EQ|INE260B01028",
+  "PREMIERENE": "NSE_EQ|INE0BS701011",
+  "POLICYBZR": "NSE_EQ|INE417T01026",
+  "BLUESTARCO": "NSE_EQ|INE472A01039",
+  "VBL": "NSE_EQ|INE200M01039"
+ }
 }
