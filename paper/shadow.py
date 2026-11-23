@@ -287,17 +287,124 @@ def finish(day, part, events, st):
     write_summary()
 
 
+def _inr(v, dec=0):
+    """Rupees / quantities with Indian digit grouping (10,72,125)."""
+    neg, v = v < 0, abs(v)
+    whole, frac = (f"{v:.{dec}f}".split(".") + [""])[:2]
+    head, tail = whole[:-3], whole[-3:]
+    while len(head) > 2:
+        tail = head[-2:] + "," + tail; head = head[:-2]
+    s = (head + "," + tail) if head else tail
+    return ("-" if neg else "") + s + ("." + frac if frac else "")
+
+
+def summarize(js):
+    """One plain-language summary of a session: {day, session, result, lines[], raw[]}."""
+    ev = js["events"]
+    get = lambda w: [e for e in ev if e["what"] == w]
+    det = lambda e: e["detail"] if isinstance(e.get("detail"), dict) else {}
+    part = js["part"]
+    names = {EQ: "VI shares"}
+    for e in get("plan"):
+        d = det(e)
+        if d.get("contract"):
+            names["fut"] = d["contract"]
+    name = lambda key: names.get(key) or ("VI shares" if key == EQ else names.get("fut", key))
+    lines, result = [], "OK"
+
+    def order_text(label, what):
+        e = next((x for x in ev if x["what"] in ("order_sent", "order_dry", "order_error") and det(x).get("label") == label), None)
+        if not e:
+            return None
+        d = det(e); r = d.get("request", {})
+        txt = (f"{e['t'][:8]} {what}: {r.get('transaction_type', '').lower()} {_inr(r.get('quantity', 0))} {name(r.get('instrument_token'))}, "
+               f"{'limit ₹' + format(r.get('price'), '.2f') if r.get('order_type') == 'LIMIT' else 'market order'}")
+        if e["what"] == "order_sent":
+            return txt + f" → accepted by the Upstox sandbox ({d.get('ms')} ms)"
+        if e["what"] == "order_dry":
+            return txt + " → logged only (sandbox token not added yet)"
+        return txt + f" → REJECTED: {str(d.get('error'))[:120]}"
+
+    if part.startswith("check"):
+        ok = bool(get("order_sent"))
+        c = det(get("cancel_sent")[0]) if get("cancel_sent") else {}
+        o = det(get("order_sent")[0]) if ok else {}
+        lines.append("Sandbox token test: a test order (buy 1 VI share at ₹1.00) was "
+                     + (f"accepted in {o.get('ms')} ms and cancelled in {c.get('ms')} ms." if ok else "NOT accepted."))
+        return {"day": js["day"], "session": "Token test", "result": "OK - token works" if ok else "FAILED", "lines": lines, "raw": ev}
+
+    for e in get("skip"):
+        return {"day": js["day"], "session": part.title(), "result": "Holiday / no trading", "lines": [str(e["detail"])], "raw": ev}
+    conn = next((e for e in ev if e["what"] == "feed" and e["detail"] == "connected"), None)
+    lines.append(f"Connected to the live Upstox feed at {conn['t'][:8]}." if conn else "Could NOT connect to the live feed.")
+    if not conn:
+        result = "Problem"
+    for e in get("missed"):
+        lines.append("Started too late: " + str(e["detail"])); result = "Missed"
+    for e in get("error") + get("feed_error"):
+        lines.append("Problem: " + str(e["detail"])[:160]); result = "Problem"
+    dry = bool(get("order_dry"))
+
+    if part == "morning":
+        p = det(get("plan")[0]) if get("plan") else {}
+        if p:
+            lines.append(f"Yesterday's last price ₹{p.get('prev_last')} → gap-up limit ₹{p.get('B_limit'):.2f} (1% higher); "
+                         f"short size {_inr(p.get('B_qty', 0))} shares.")
+            if p.get("A_sell"):
+                lines.append(f"Overnight position to sell: {_inr(p['A_sell']['qty'])} {p['A_sell']['symbol']}.")
+        for lab, what in (("A-sell", "Plan A pre-open sell"), ("B-limit-short", "Plan B pre-open limit short")):
+            t = order_text(lab, what)
+            if t:
+                lines.append(t)
+        fills = {det(e).get("leg"): det(e) for e in get("fill")}
+        a = det(get("auction")[0]) if get("auction") else {}
+        if "A-sell" in fills:
+            lines.append(f"09:15 auction: overnight futures sold at ₹{fills['A-sell'].get('price')}.")
+        if a:
+            reached = a.get("B_filled")
+            lines.append(f"09:15 auction: VI opened at ₹{a.get('VI_open')} — the ₹{a.get('B_limit'):.2f} limit was "
+                         + ("REACHED, so the short filled at the auction price." if reached else "not reached, so no short today."))
+        if "B-cover" in fills:
+            t = order_text("B-cover", "Plan B buy-back")
+            if t:
+                lines.append(t)
+            lines.append(f"Bought back at ₹{fills['B-cover'].get('price')} (best price to buy at 09:16:00).")
+        if any(e["what"] in ("cancel_sent", "cancel_dry") for e in ev):
+            lines.append("Unfilled limit short cancelled" + (" (logged only)." if get("cancel_dry") else " in the sandbox."))
+    elif part == "afternoon":
+        p = det(get("plan")[0]) if get("plan") else {}
+        if p:
+            lines.append(f"Plan A account ₹{_inr(p.get('equity_A', 0))} → {p.get('lots')} lot(s) of {p.get('contract')} "
+                         f"({_inr(p.get('lots', 0) * p.get('lot', 0))} shares).")
+        q = det(get("buy_quote")[0]) if get("buy_quote") else {}
+        asks = q.get("best_ask") or []
+        if asks:
+            lines.append(f"At 15:25:00 the best price to buy was ₹{asks[0][0]} ({_inr(asks[0][1])} available).")
+        t = order_text("A-buy", "Plan A buy")
+        if t:
+            lines.append(t)
+        fb = next((det(e) for e in get("fill") if det(e).get("leg") == "A-buy"), None)
+        if fb:
+            lines.append(f"Bought at ₹{fb.get('price')} (live price at that second).")
+    if result == "OK" and dry:
+        result = "OK - orders logged only"
+    elif result == "OK" and get("order_sent"):
+        result = "OK - sandbox orders accepted"
+    return {"day": js["day"], "session": part.title(), "result": result, "lines": lines, "raw": ev}
+
+
 def write_summary():
-    """docs/data/shadow.json for the dashboard's session log, rebuilt from ALL session files (so two runs can't clash)."""
+    """docs/data/shadow.json for the dashboard's session log: one plain-language summary per session, rebuilt from ALL
+    session files (so two runs can't clash). Raw events are kept for the 'details' view."""
     OUT.mkdir(parents=True, exist_ok=True)
-    keep = ("plan", "auction", "cover_quote", "buy_quote", "fill", "order_sent", "order_dry", "order_error", "cancel_sent",
-            "cancel_dry", "missed", "skip", "error", "feed_error", "note")
     rows = []
-    for g in sorted(OUT.glob("*.json"))[-20:]:
-        js = json.loads(g.read_text())
-        rows += [{"day": js["day"], "part": js["part"], **e} for e in js["events"] if e["what"] in keep]
+    for g in sorted(OUT.glob("*.json"))[-30:]:
+        try:
+            rows.append(summarize(json.loads(g.read_text())))
+        except Exception as e:
+            rows.append({"day": g.stem[:10], "session": g.stem[11:], "result": "Could not summarise", "lines": [str(e)[:200]], "raw": []})
     (ROOT / "docs" / "data").mkdir(parents=True, exist_ok=True)
-    (ROOT / "docs" / "data" / "shadow.json").write_text(json.dumps(rows[-60:], indent=1, default=str))
+    (ROOT / "docs" / "data" / "shadow.json").write_text(json.dumps(rows, indent=1, default=str, ensure_ascii=False), encoding="utf-8")
     # the shadow bot only READS the paper accounts; it never saves state/meta.json (the paper bot owns it)
 
 

@@ -45,9 +45,9 @@
     <div class="scroll"><table id="cmp"></table></div></div>
   <div class="panel"><h3>Open position</h3><div id="open"></div></div>
   <div class="panel"><h3>Paper trades (newest first)</h3><div class="scroll"><table id="tr"></table></div></div>
-  <div class="panel"><h3>Live shadow bot — session log</h3>
-    <p class="sub" style="margin:0 0 8px">Connects live at 08:50 and 15:15, sends the pre-open orders at 09:00:05, buys back at 09:16:00, buys futures at 15:25:00. "logged only" = no sandbox token at that time.</p>
-    <div class="scroll"><table id="sh"></table></div></div>
+  <div class="panel"><h3>Live shadow bot — what happened each session</h3>
+    <p class="sub" style="margin:0 0 8px">Morning session starts 08:40 (pre-open orders at 09:00:05, buy-back at 09:16:00); afternoon session starts 15:05 (futures buy at 15:25:00). Orders go to the Upstox sandbox (pretend, no money).</p>
+    <div id="sh"></div></div>
   <div class="panel"><h3>What the research expects</h3><div id="ref"></div></div>
   <div class="panel"><h3>Rules</h3>
     <p><span class="tag ta">A</span> <b>Overnight futures</b>: buy VI's future in one order at 15:25 (real best ask from the tick recorder), sell at the next 09:15 pre-open auction price. As many lots as ₹ allows with a cushion. Switch to next month when fewer than 5 trading days are left before expiry.</p>
@@ -126,19 +126,22 @@ fetch("data/dashboard.json?" + Date.now()).then(r => r.json()).then(d => {
     (about ${r.overnight_net_bps_per_night} bps a night after costs) and <b>B ≈ +${r.gapshort_last12m_pct}%</b> a year (about ${r.gapshort_net_bps_per_trade_2026} bps per trade,
     roughly ${r.gapup_days_per_month} gap-up mornings a month). Three months is a short test: expect B to have only 6–10 trades.`;
 }).catch(e => { document.getElementById("sub").textContent = "Could not load data: " + e; });
-const shText = e => {
-  const d = e.detail;
-  if (typeof d === "string") return d;
-  if (e.what.startsWith("order")) { const r = d.request || {};
-    return `${d.label}: ${r.transaction_type} ${(+r.quantity).toLocaleString("en-IN")} ${r.instrument_token} ${r.order_type}${r.order_type === "LIMIT" ? " @ " + r.price : ""} (${r.product === "I" ? "intraday" : "NRML"})` +
-      (d.order_ids ? ` → sandbox id ${d.order_ids}` : "") + (d.ms != null ? `, ${d.ms} ms` : "") + (d.error ? ` ERROR ${d.error}` : ""); }
-  return Object.entries(d).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(" · ");
+const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+const badge = r => {
+  const bad = /problem|failed|missed|rejected|could not/i.test(r), info = /holiday|logged only/i.test(r);
+  const col = bad ? "var(--neg)" : info ? "var(--muted)" : "var(--pos)";
+  return `<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;color:#fff;background:${col}">${esc(r)}</span>`;
 };
 fetch("data/shadow.json?" + Date.now()).then(r => r.ok ? r.json() : []).then(rows => {
   const t = document.getElementById("sh");
-  t.innerHTML = `<tr><th class="l">Day</th><th class="l">Session</th><th class="l">Time</th><th class="l">Step</th><th class="l">Details</th></tr>` +
-    (rows.length ? rows.slice().reverse().map(e => `<tr><td class="l">${e.day}</td><td class="l">${e.part}</td><td class="l">${e.t}</td><td class="l">${e.what}</td><td class="l" style="white-space:normal">${shText(e)}</td></tr>`).join("")
-      : `<tr><td colspan="5" class="l">No shadow sessions yet.</td></tr>`);
+  if (!Array.isArray(rows) || !rows.length || !rows[0].lines) { t.innerHTML = "No shadow sessions yet."; return; }
+  t.innerHTML = rows.slice().reverse().map(s => `
+    <div style="border-top:1px solid var(--line);padding:10px 0">
+      <div><b>${esc(s.day)} · ${esc(s.session)}</b> &nbsp;${badge(s.result)}</div>
+      <ul style="margin:6px 0 4px 18px;padding:0">${s.lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul>
+      ${s.raw && s.raw.length ? `<details><summary class="sub" style="cursor:pointer">show technical details</summary>
+        <div class="scroll"><table>${s.raw.map(e => `<tr><td class="l">${esc(e.t)}</td><td class="l">${esc(e.what)}</td><td class="l" style="white-space:normal">${esc(typeof e.detail === "string" ? e.detail : JSON.stringify(e.detail))}</td></tr>`).join("")}</table></div></details>` : ""}
+    </div>`).join("");
 }).catch(() => {});
 </script>
 </body>
