@@ -1,5 +1,5 @@
 {
- "updated": "23 Nov 2026 16:56 IST",
+ "updated": "23 Nov 2026 18:18 IST",
  "start_date": "2026-11-23",
  "plans": {
   "A": {
@@ -107,6 +107,14 @@
    },
    "max_gap_seconds": 60,
    "_note": "Fills outside the auction come from the tick recorder's encrypted daily files (needs the TICKS_KEY secret). The bot waits for them until these times, then falls back to minute candles and says so in the trade note."
+  },
+  "limit_orders": {
+   "offset_paise": 1,
+   "A_place": "15:20",
+   "A_fallback": "15:25",
+   "B_place": "09:16",
+   "B_fallback": "09:17",
+   "_note": "Owner's rule from 23 Nov 2026 (research: +4.3 bps/night for A, +4.6 bps/trade for B). Plan A: at 15:20 a limit buy 1 paisa below the last traded price; filled only if the market later trades BELOW it (so we are surely filled even at the back of the queue); if not filled by 15:25, market buy at 15:25 (best ask). Plan B buy-back: same at 09:16, market at 09:17."
   }
  },
  "shadow": {
