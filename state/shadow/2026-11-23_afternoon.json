@@ -1,0 +1,82 @@
+{
+ "day": "2026-11-23",
+ "part": "afternoon",
+ "events": [
+  {
+   "t": "15:15:27.799",
+   "what": "note",
+   "detail": "UPSTOX_SANDBOX_TOKEN not set: orders are logged, not sent"
+  },
+  {
+   "t": "15:15:29.578",
+   "what": "feed",
+   "detail": "connected"
+  },
+  {
+   "t": "15:24:55.000",
+   "what": "plan",
+   "detail": {
+    "contract": "IDEA FUT 29 DEC 26",
+    "lot": 71475,
+    "lots": 1,
+    "equity_A": 500000,
+    "est_price": 12.01
+   }
+  },
+  {
+   "t": "15:25:00.000",
+   "what": "buy_quote",
+   "detail": {
+    "best_ask": [
+     [
+      12.01,
+      1072125
+     ],
+     [
+      12.02,
+      357375
+     ],
+     [
+      12.03,
+      857700
+     ]
+    ],
+    "ltp": 11.99,
+    "age_s": 6.48
+   }
+  },
+  {
+   "t": "15:25:00.000",
+   "what": "order_dry",
+   "detail": {
+    "label": "A-buy",
+    "request": {
+     "quantity": 71475,
+     "product": "D",
+     "validity": "DAY",
+     "price": 0.0,
+     "tag": "vi-shadow-A-buy",
+     "instrument_token": "NSE_FO|58992",
+     "order_type": "MARKET",
+     "transaction_type": "BUY",
+     "disclosed_quantity": 0,
+     "trigger_price": 0.0,
+     "is_amo": false,
+     "slice": false
+    }
+   }
+  },
+  {
+   "t": "15:25:02.234",
+   "what": "feed",
+   "detail": "closed (None, None)"
+  },
+  {
+   "t": "15:25:02.234",
+   "what": "feed_stats",
+   "detail": {
+    "messages": 160
+   }
+  }
+ ]
+}
