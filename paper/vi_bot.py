@@ -491,7 +491,7 @@ def report(st, now):
     try:                                         # the live shadow bot, lined up with the paper trades
         sys.path.insert(0, str(ROOT / "paper"))
         import shadow_ledger
-        dash["shadow"] = shadow_ledger.build()
+        dash["shadow"] = shadow_ledger.build(m.get("open"))
     except Exception as e:
         log("shadow ledger not built:", e)
         dash["shadow"] = {"error": str(e)[:200]}

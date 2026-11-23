@@ -61,7 +61,8 @@ def _fills(events):
     return f
 
 
-def build():
+def build(paper_open=None):
+    """paper_open = the paper bot's open overnight position (state/meta.json 'open'), shown before it is closed."""
     ses = _sessions()
     paper = list(csv.DictReader(open(ROOT / "state" / "trades.csv", encoding="utf-8"))) if (ROOT / "state" / "trades.csv").exists() else []
     pA = {r["date"]: r for r in paper if r["plan"].startswith("A")}
@@ -89,6 +90,8 @@ def build():
         if sell and sell["price"] and fb["price"]:
             q = fb["qty"]
             r["shadow_net"] = round((sell["price"] - fb["price"]) * q - vb.charges("fut", "buy", fb["price"] * q) - vb.charges("fut", "sell", sell["price"] * q))
+        if not p and paper_open and paper_open.get("date") == d:
+            r.update(paper_entry=float(paper_open["entry"]), paper_qty=int(paper_open["qty"]))
         if p:
             r.update(paper_entry=float(p["entry"]), paper_exit=float(p["exit"]), paper_net=float(p["net_rs"]), paper_qty=int(p["qty"]))
             if not sell_day and p.get("exit_date"):
