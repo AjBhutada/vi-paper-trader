@@ -1,5 +1,5 @@
 {
-  "_about": "Rules for the Vodafone Idea paper trader. Paper trading only: no orders are ever sent. Approved by the owner on 23 Nov 2026.",
+  "_about": "Rules for the paper trader (Plans A and B on Vodafone Idea, Plan C on a 13-stock basket). Paper trading only: no orders are ever sent. Approved by the owner on 23 Nov 2026.",
   "start_date": "2026-11-23",
   "_start_date_note": "First trading day (India time). Started 23 Nov 2026 so the first overnight holds over the 24 Nov holiday.",
   "underlying": "IDEA",
@@ -45,7 +45,11 @@
     "overnight_net_bps_per_night": 11.5,
     "gapshort_net_bps_per_trade_2026": 41,
     "gapup_days_per_month": 2.5,
-    "_note": "What the research expects (Nov 2025 - Nov 2026 replay on today's terms). The paper test checks whether this still holds."
+    "_note": "What the research expects (Nov 2025 - Nov 2026 replay on today's terms). The paper test checks whether this still holds.",
+    "planc_fresh_2026_pct": 108,
+    "planc_trades_per_month": 5,
+    "planc_5yr_compound_pct_per_year": 65,
+    "_planc_note": "Plan C: a fresh Rs 5 lakh in Jan-Nov 2026 with the last-12-months order -> +108%; about 5 trades a month; 5 years compounding from Jan 2022 about +65%/yr (lower % as the pot grows: each stock only takes so much money at the open)."
   },
   "ticks": {
     "recorder_repo": "AjBhutada/upstox-tick-recorder",
@@ -63,5 +67,36 @@
     "B_place": "09:16",
     "B_fallback": "09:17",
     "_note": "Owner's rule from 23 Nov 2026 (research: +4.3 bps/night for A, +4.6 bps/trade for B). Plan A: at 15:20 a limit buy 1 paisa below the last traded price; filled only if the market later trades BELOW it (so we are surely filled even at the back of the queue); if not filled by 15:25, market buy at 15:25 (best ask). Plan B buy-back: same at 09:16, market at 09:17."
+  },
+  "plan_c": {
+    "capital": 500000,
+    "start_date": "2026-11-25",
+    "stocks": [
+      "IDEA",
+      "VEDL",
+      "VMM",
+      "POLICYBZR",
+      "RELIANCE",
+      "PREMIERENE",
+      "ONGC",
+      "WAAREEENER",
+      "MAXHEALTH",
+      "VBL",
+      "TATASTEEL",
+      "BLUESTARCO",
+      "GODFRYPHLP"
+    ],
+    "_stocks_note": "PRIORITY order = results of the last 12 months (net profit per gap-up trade after costs, shrunk for few trades: avg x n/(n+10)), worked out 23 Nov 2026 with plan_c_order.py. Honest test 2023-26 (order re-picked every 6 months from the past only): last-12-months order averaged +180%/yr on a fresh Rs 5 lakh vs +171% for the fixed 5-year order, and +108% vs +90% in 2026. VI is still first: best of the 13 over the last 12 months (11 trades, +1.04% each, 10 of 11 won). Owner added Waaree Energies, Premier Energies and Vishal Mega Mart (established brands).",
+    "rerank_due": "2027-05-25",
+    "_rerank_note": "Every 6 months re-rank on the last 12 months; the bot raises a GitHub issue when this date arrives.",
+    "gap_threshold_pct": 2.0,
+    "entry_minute": "09:15",
+    "cover_minute": "09:20",
+    "leverage": 5.0,
+    "max_positions": 3,
+    "liquidity_frac": 0.05,
+    "cap_rs": 5000000,
+    "min_position_rs": 50000,
+    "_note": "Plan C (owner approved 23 Nov 2026): gap-up auction short on a basket. Real-bot rule: limit sell at yesterday's last price x 1.02 (rounded up to the price step) in the 09:00-09:08 pre-open; it fills only if the auction price is at or above it, at the auction price (= the 09:15 minute's open). Gaps above 20% are ignored (corporate actions). Each morning up to 3 signals in priority order; each position <= 5% of the stock's median 09:15-minute traded value over the last 20 trading days (so our order would not move the price), <= Rs 50 lakh, from what is left of 5 x the Plan C account; positions under Rs 50,000 are skipped. Buy back at 09:20 at the best ask from the tick recorder (walking the depth); if the recorder missed it, the 09:20 minute's open + half a price step (at least 0.02%). Cash intraday charges. Separate from Plan B: on a VI gap-up of 2%+ both plans short VI."
   }
 }

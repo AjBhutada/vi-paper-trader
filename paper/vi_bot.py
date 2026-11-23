@@ -1,9 +1,12 @@
-"""Vodafone Idea paper trader - two plans, Rs 5 lakh each, compounding. PAPER ONLY: no orders are ever sent.
+"""Vodafone Idea paper trader - three plans, Rs 5 lakh each, compounding. PAPER ONLY: no orders are ever sent.
 
 Plan A  OVERNIGHT   : buy the VI future in one order at 15:25, sell at the next 09:15 pre-open auction price.
                       Roll to next month when fewer than 5 trading days are left.
 Plan B  GAP-UP SHORT: a limit sell at yesterday's last price x 1.01 in the pre-open: fills only if the auction
                       price is that high, at the auction price. Short 5x the account, buy back at 09:16.
+Plan C  GAP-UP BASKET: the same idea on 13 stocks (settings "plan_c"): limit sell at yesterday's last price x 1.02
+                      in the pre-open; up to 3 stocks a morning in the list's priority order, each sized to the
+                      stock's opening liquidity; buy back at 09:20.
 
 Auction prices = the 09:15 minute's open from Upstox's public 1-minute candles (exact: one price for everyone).
 Buys outside the auction = the real best ask from the tick recorder's files (needs TICKS_KEY), walking the
@@ -13,7 +16,7 @@ day: missed runs are caught up, and running twice changes nothing.
 Usage:  python paper/vi_bot.py [--now "YYYY-MM-DD HH:MM"] [--state DIR] [--start YYYY-MM-DD] [--no-report]
         --now is a fake clock for tests; --state points at another state folder for replays.
 """
-import argparse, gzip, http.cookiejar, io, json, math, os, subprocess, sys, tarfile, time, urllib.error, urllib.parse, urllib.request
+import argparse, csv, gzip, hashlib, http.cookiejar, io, json, math, os, statistics, subprocess, sys, tarfile, time, urllib.error, urllib.parse, urllib.request
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -21,7 +24,10 @@ ROOT = Path(__file__).resolve().parents[1]
 IST = timezone(timedelta(hours=5, minutes=30))
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36"
 S = json.loads((ROOT / "paper" / "settings.json").read_text())
+C_ = S["plan_c"]
 CACHE = ROOT / ".cache"
+DAY_COLS = ["date", "equity_A", "equity_B", "equity_C", "total", "A_lots_overnight", "A_contract", "gap_pct", "B_traded",
+            "C_trades", "note"]
 
 
 def log(*a):
@@ -36,10 +42,28 @@ class State:
         self.meta = json.loads(self.meta_f.read_text()) if self.meta_f.exists() else {}
         self.trades_f, self.days_f = self.dir / "trades.csv", self.dir / "days.csv"
 
-    def init(self, start):
+    def init(self, start, start_c=None):
         if not self.meta:
             self.meta = {"start_date": start, "equity": {"A": S["capital_overnight"], "B": S["capital_gapshort"]},
                          "last_morning": None, "last_evening": None, "open": None, "alerted": {}, "last_run": None}
+        self.upgrade(start_c)
+
+    def upgrade(self, start_c=None):
+        """States made before Plan C get its account, start date and an equity_C column in days.csv."""
+        m = self.meta
+        m["equity"].setdefault("C", C_["capital"])
+        m.setdefault("last_c", None)
+        m.setdefault("start_c", start_c or C_["start_date"])
+        if self.days_f.exists():
+            rows = list(csv.DictReader(open(self.days_f, encoding="utf-8")))
+            if rows and "equity_C" not in rows[0]:
+                with open(self.days_f, "w", encoding="utf-8") as h:
+                    h.write(",".join(DAY_COLS) + "\n")
+                    for r in rows:
+                        r["equity_C"] = C_["capital"]
+                        r["total"] = round(float(r["equity_A"]) + float(r["equity_B"]) + C_["capital"])
+                        h.write(",".join(str(r.get(c, "")) for c in DAY_COLS) + "\n")
+                log("days.csv upgraded with the Plan C column")
 
     def save(self):
         self.meta_f.write_text(json.dumps(self.meta, indent=1))
@@ -54,7 +78,7 @@ class State:
             h.write(",".join(str(row.get(c, "")).replace(",", ";") for c in cols) + "\n")
 
     def add_day(self, row):
-        cols = ["date", "equity_A", "equity_B", "total", "A_lots_overnight", "A_contract", "gap_pct", "B_traded", "note"]
+        cols = DAY_COLS
         new = not self.days_f.exists()
         with open(self.days_f, "a", encoding="utf-8") as h:
             if new:
@@ -111,14 +135,18 @@ def candles(key, day, today=None):
 def contracts(st):
     """VI futures (key, symbol, expiry, lot). Kept in the state so contracts stay known after they expire."""
     known = st.meta.setdefault("contracts", {})
+    eqk = st.meta.setdefault("eq_keys", {})
     stamp = st.meta.get("contracts_fetched")
-    if not stamp or stamp < str(datetime.now(IST).date()):
+    if not stamp or stamp < str(datetime.now(IST).date()) or any(s not in eqk for s in C_["stocks"]):
         try:
             raw = http_get("https://assets.upstox.com/market-quote/instruments/exchange/NSE.json.gz")
             for x in json.load(gzip.open(io.BytesIO(raw))):
                 if x.get("segment") == "NSE_FO" and x.get("instrument_type") == "FUT" and x.get("underlying_symbol") == S["underlying"]:
                     exp = datetime.fromtimestamp(x["expiry"] / 1000, IST).date().isoformat()
                     known[x["instrument_key"]] = {"symbol": x["trading_symbol"], "expiry": exp, "lot": x["lot_size"]}
+                if (x.get("segment") == "NSE_EQ" and x.get("instrument_type") == "EQ"
+                        and x.get("trading_symbol") in C_["stocks"]):          # Plan C shares
+                    eqk[x["trading_symbol"]] = x["instrument_key"]
             st.meta["contracts_fetched"] = str(datetime.now(IST).date())
         except Exception as e:
             log("instrument list not refreshed:", e)
@@ -156,8 +184,10 @@ def tick_assets(day):
 
 
 def load_tick_asset(name, url, keys):
-    """Download + decrypt one recorder file and keep only VI lines (shares + futures). Cached."""
-    f = CACHE / "ticks" / (name.replace(".tgz.enc", "") + "_vi.jsonl")
+    """Download + decrypt one recorder file and keep only the lines of `keys` (VI shares + futures, Plan C shares).
+    Cached per key set, so adding stocks never reuses a cache that lacks them."""
+    tag = hashlib.md5(",".join(sorted(keys)).encode()).hexdigest()[:8]
+    f = CACHE / "ticks" / (name.replace(".tgz.enc", "") + f"_{tag}.jsonl")
     if f.exists():
         return [json.loads(l) for l in f.open(encoding="utf-8")]
     enc = None
@@ -196,8 +226,39 @@ def load_tick_asset(name, url, keys):
     with f.open("w", encoding="utf-8") as h:
         for r in out:
             h.write(json.dumps(r) + "\n")
-    log(f"ticks: {name} -> {len(out):,} VI snapshots")
+    log(f"ticks: {name} -> {len(out):,} snapshots")
     return out
+
+
+# ---------------------------------------------------------------- Plan C helpers
+def tick_size(p):
+    """NSE price step by price band (stocks below Rs 250 move in 1 paisa since 10 Jun 2024)."""
+    return 0.01 if p < 250 else 0.05 if p < 1000 else 0.10 if p < 5000 else 0.5 if p < 10000 else 1.0
+
+
+def opening_value_median(key, d, n=20):
+    """Median traded value (Rs) of the 09:15 minute over the n trading days before d (None if fewer than 5).
+    This is how much a stock trades at its opening auction - Plan C never takes more than 5% of it. Cached."""
+    f = CACHE / "openvalue" / f"{key.replace('|', '_')}_{d}.json"
+    if f.exists():
+        return json.loads(f.read_text())["v"]
+    q = urllib.parse.quote(key, safe="")
+    vals, b = {}, d - timedelta(days=1)
+    for _ in range(3):                                   # 1-minute history comes in up-to-1-month pieces
+        a = b - timedelta(days=28)
+        raw = http_get(f"https://api.upstox.com/v3/historical-candle/{q}/minutes/1/{b}/{a}")
+        for t, o, h, l, c, v, *_ in (json.loads(raw)["data"]["candles"] if raw else []):
+            if t[11:16] == "09:15" and v:
+                vals[t[:10]] = o * v
+        if len(vals) >= n:
+            break
+        b = a - timedelta(days=1)
+    days = sorted(vals)[-n:]
+    if len(days) < 5:
+        return None
+    med = statistics.median(vals[x] for x in days)
+    f.parent.mkdir(parents=True, exist_ok=True); f.write_text(json.dumps({"v": med, "days": len(days)}))
+    return med
 
 
 # ---------------------------------------------------------------- money
@@ -228,6 +289,7 @@ class Bot:
         self.hol = holidays(st)
         self.cons = contracts(st)
         self.slip = S["slip_paise"] / 100
+        self.eqk = st.meta.get("eq_keys", {})
         self.ticks_on = bool(os.environ.get("TICKS_KEY"))
         if not self.ticks_on:
             log("TICKS_KEY not set: fills outside the auction use minute candles")
@@ -235,12 +297,12 @@ class Bot:
 
     # ---- tick-exact fills
     def ticks(self, d):
-        """All VI snapshots (shares + futures) the recorder has for day d so far."""
+        """All snapshots (VI shares + futures, Plan C shares) the recorder has for day d so far."""
         if not self.ticks_on:
             return []
         if d in self._ticks:
             return self._ticks[d]
-        keys = {S["equity_key"]} | {c["key"] for c in self.cons}
+        keys = {S["equity_key"]} | {c["key"] for c in self.cons} | set(self.eqk.values())
         snaps = []
         try:
             for name, url in tick_assets(d):
@@ -266,8 +328,9 @@ class Bot:
                 break
         note = ""
         if left > 0:
-            cost += left * (s["asks"][-1][0] + 0.01)
-            note = "; part beyond the visible depth priced 1 paisa worse"
+            step = tick_size(s["asks"][-1][0])
+            cost += left * (s["asks"][-1][0] + step)
+            note = f"; {left:,} beyond the visible depth priced one step ({step:g}) worse"
         when = datetime.fromtimestamp(s["rx"], IST).strftime("%H:%M:%S")
         return cost / qty, when, f"tick best ask at {when} (ask {s['asks'][0][0]} x {s['asks'][0][1]:,}){note}"
 
@@ -457,10 +520,90 @@ class Bot:
 
     def _end_day(self, d, c, lots=0):
         m = self.st.meta
-        self.st.add_day(dict(date=str(d), equity_A=round(m["equity"]["A"]), equity_B=round(m["equity"]["B"]),
-                             total=round(m["equity"]["A"] + m["equity"]["B"]), A_lots_overnight=lots,
-                             A_contract=c["symbol"] if c else "", gap_pct=m.get("_gap"), B_traded=m.get("_btrade", False)))
+        eq = m["equity"]
+        self.st.add_day(dict(date=str(d), equity_A=round(eq["A"]), equity_B=round(eq["B"]), equity_C=round(eq["C"]),
+                             total=round(eq["A"] + eq["B"] + eq["C"]), A_lots_overnight=lots,
+                             A_contract=c["symbol"] if c else "", gap_pct=m.get("_gap"), B_traded=m.get("_btrade", False),
+                             C_trades=m.get("_c_trades", "") if m.get("last_c") == str(d) else ""))
         m["last_evening"] = str(d)
+        return True
+
+    # ---- Plan C: gap-up auction short on a basket of stocks
+    def morning_c(self, d):
+        """Book Plan C for day d. Returns False when it is worth trying again later (today's data not complete)."""
+        st, m = self.st, self.st.meta
+        today_early = d == self.today and self.now.time() < datetime.strptime("10:30", "%H:%M").time()
+        pd_ = self.prev_tday(d)
+        if not pd_:
+            st.alert(f"noprev-c-{d}", f"Plan C: could not find the previous trading day before {d}; skipped.")
+            m["last_c"], m["_c_trades"] = str(d), 0
+            return True
+        ent, cov = C_["entry_minute"], C_["cover_minute"]
+        signals, seen = [], []
+        for rank, s in enumerate(C_["stocks"], 1):
+            key = self.eqk.get(s)
+            if not key:
+                st.alert(f"nokey-{s}", f"Plan C: {s} not found in Upstox's instrument list; it is skipped.")
+                continue
+            cs = candles(key, d, self.today)
+            if ent not in cs or cov not in cs:
+                if today_early:
+                    log(f"C: {s} has no {ent}/{cov} candle yet - will retry"); return False
+                log(f"C: {s} has no {ent}/{cov} candle on {d} (not traded?) - skipped"); continue
+            prev = candles(key, pd_, self.today)
+            if not prev:
+                log(f"C: {s} has no candles on {pd_} - skipped"); continue
+            pc, o = prev[max(prev)][3], cs[ent][0]
+            limit = math.ceil(round(pc * (1 + C_["gap_threshold_pct"] / 100) / tick_size(pc), 6)) * tick_size(pc)
+            gap = (o / pc - 1) * 100
+            seen.append(f"{s} {gap:+.1f}%")
+            if o >= limit - 1e-9 and gap <= 20:          # > 20% = a corporate action, not a real gap
+                signals.append(dict(rank=rank, sym=s, key=key, cs=cs, pc=pc, o=o, gap=gap, limit=limit))
+        log(f"C {d}: gaps " + ", ".join(seen))
+        signals.sort(key=lambda x: (x["rank"], -x["gap"]))
+        budget, chosen, passed = C_["leverage"] * m["equity"]["C"], [], []
+        for x in signals:
+            if len(chosen) >= C_["max_positions"] or budget < C_["min_position_rs"]:
+                passed.append(f"{x['sym']} (no room left)"); continue
+            fmv = opening_value_median(x["key"], d)
+            if fmv is None:
+                passed.append(f"{x['sym']} (too little history)"); continue
+            liq = C_["liquidity_frac"] * fmv
+            notional = min(liq, C_["cap_rs"], budget)
+            qty = int(notional // x["o"])
+            if qty * x["o"] < C_["min_position_rs"]:
+                passed.append(f"{x['sym']} (position too small)"); continue
+            why = ("5% of its usual opening-minute value" if liq <= min(C_["cap_rs"], budget) else
+                   "the Rs 50 lakh cap" if C_["cap_rs"] <= budget else "what was left of 5x the account")
+            x.update(qty=qty, why=why); chosen.append(x); budget -= qty * x["o"]
+        fills = []
+        for x in chosen:
+            tb = self.tick_buy(d, x["key"], cov, x["qty"])
+            if tb is None and self.waiting("morning") and not self.ticks(d):
+                log(f"C: {x['sym']} gapped up, waiting for the recorder's {cov} ticks"); return False
+            if tb is None:
+                c0 = x["cs"][cov][0]
+                half = max(tick_size(c0) / 2, c0 * 0.0002)
+                tb = (c0 + half, cov, f"no ticks: {cov} minute open + {half:.4f} (half a price step, at least 0.02%)")
+            fills.append((x, *tb))
+        for x, px, when, how in fills:
+            qty, o = x["qty"], x["o"]
+            gross = (o - px) * qty
+            ch = charges("cash", "sell", o * qty) + charges("cash", "buy", px * qty)
+            net = gross - ch
+            m["equity"]["C"] += net
+            st.add_trade(dict(plan="C gap-up basket", date=str(d), instrument=f"{x['sym']} shares (MIS)", side="short", qty=qty,
+                              entry_time=ent, entry=o, exit_date=str(d), exit_time=when, exit=round(px, 4),
+                              gross_rs=round(gross), charges_rs=round(ch), net_rs=round(net),
+                              net_bps=round(net / (o * qty) * 1e4, 1), equity_after=round(m["equity"]["C"]),
+                              note=f"priority {x['rank']} of {len(C_['stocks'])}; gap {x['gap']:+.2f}% (prev {x['pc']}; limit {x['limit']:.2f}; "
+                                   f"auction {o}); size: {x['why']}; covered: {how}"))
+            log(f"C: {x['sym']} gap {x['gap']:+.2f}% -> shorted {qty:,} at {o}, covered {px:.4f} ({how}), net Rs {net:,.0f}")
+        if passed:
+            log("C: signals not taken: " + ", ".join(passed))
+        if not signals:
+            log(f"C: no stock opened {C_['gap_threshold_pct']}% up -> no trade")
+        m["last_c"], m["_c_trades"] = str(d), len(fills)
         return True
 
     def run(self):
@@ -468,8 +611,15 @@ class Bot:
         d = date.fromisoformat(m["start_date"])
         last_m = date.fromisoformat(m["last_morning"]) if m["last_morning"] else d - timedelta(days=1)
         last_e = date.fromisoformat(m["last_evening"]) if m["last_evening"] else d - timedelta(days=1)
-        d = min(last_m, last_e) + timedelta(days=1)
+        start_c = date.fromisoformat(m["start_c"])
+        last_c = date.fromisoformat(m["last_c"]) if m.get("last_c") else start_c - timedelta(days=1)
+        last_c = max(last_c, start_c - timedelta(days=1))
+        d = min(last_m, last_e, last_c) + timedelta(days=1)
         t = self.now.time()
+        due = C_.get("rerank_due")
+        if due and self.today >= date.fromisoformat(due):
+            self.st.alert(f"rerank-{due}", f"Plan C's stock order is due for its 6-monthly re-rank (due {due}): ask Claude to "
+                                           "re-run plan_c_order.py on the last 12 months and update paper/settings.json.")
         while d <= self.today:
             if not self.trading(d):
                 d += timedelta(days=1); continue
@@ -486,6 +636,12 @@ class Bot:
                 if not self.morning(d):
                     break
                 last_m = d
+            if d > last_c:
+                if is_today and t < datetime.strptime("09:21", "%H:%M").time():
+                    break
+                if not self.morning_c(d):
+                    break
+                last_c = d
             if d > last_e:
                 if is_today and t < datetime.strptime("15:31", "%H:%M").time():
                     break
@@ -498,7 +654,6 @@ class Bot:
 
 # ---------------------------------------------------------------- report
 def report(st, now):
-    import csv
     m = st.meta
     trades = list(csv.DictReader(open(st.trades_f, encoding="utf-8"))) if st.trades_f.exists() else []
     days = list(csv.DictReader(open(st.days_f, encoding="utf-8"))) if st.days_f.exists() else []
@@ -519,12 +674,15 @@ def report(st, now):
                 "median_net_bps": bps[len(bps) // 2] if bps else None,
                 "best_rs": round(max(nets)) if nets else None, "worst_rs": round(min(nets)) if nets else None,
                 "max_dip_pct": round(dd * 100, 2)}
-    A, B = summary("A", S["capital_overnight"]), summary("B", S["capital_gapshort"])
-    tot0 = S["capital_overnight"] + S["capital_gapshort"]
-    tot = m["equity"]["A"] + m["equity"]["B"]
-    dash = {"updated": now.strftime("%d %b %Y %H:%M IST"), "start_date": m["start_date"], "plans": {"A": A, "B": B},
+    A, B, Cp = summary("A", S["capital_overnight"]), summary("B", S["capital_gapshort"]), summary("C", C_["capital"])
+    Cp["stocks_traded"] = sorted({x["instrument"].split()[0] for x in trades if x["plan"].startswith("C")})
+    tot0 = S["capital_overnight"] + S["capital_gapshort"] + C_["capital"]
+    tot = m["equity"]["A"] + m["equity"]["B"] + m["equity"]["C"]
+    dash = {"updated": now.strftime("%d %b %Y %H:%M IST"), "start_date": m["start_date"], "start_c": m["start_c"],
+            "plans": {"A": A, "B": B, "C": Cp},
             "combined": {"start": tot0, "now": round(tot), "pnl": round(tot - tot0), "ret_pct": round((tot / tot0 - 1) * 100, 2)},
-            "open": m["open"], "days": days, "trades": trades[-200:], "reference": S["backtest_reference"],
+            "plan_c": {"stocks": C_["stocks"], "rerank_due": C_.get("rerank_due"), "last_c": m.get("last_c")},
+            "open": m["open"], "days": days, "trades": trades[-300:], "reference": S["backtest_reference"],
             "last_gap_pct": m.get("_gap"), "rules": {k: v for k, v in S.items() if not k.startswith("_") and k != "backtest_reference"}}
     try:                                         # the live shadow bot, lined up with the paper trades
         sys.path.insert(0, str(ROOT / "paper"))
@@ -537,19 +695,21 @@ def report(st, now):
     (ROOT / "docs" / "data" / "dashboard.json").write_text(json.dumps(dash, indent=1))
     pos = m["open"]
     lines = ["# Vodafone Idea paper trader", "",
-             "Two plans on Vodafone Idea (VI), Rs 5 lakh each, compounding. **Paper trading only: no real orders.**",
+             "Three plans, Rs 5 lakh each, compounding: A and B on Vodafone Idea (VI), C on a basket of 13 stocks. "
+             "**Paper trading only: no real orders.**",
              f"Dashboard: https://ajbhutada.github.io/vi-paper-trader/  ·  updated {dash['updated']}", "",
              "| Plan | Start | Now | P&L | Return | Trades | Win rate | Avg / trade | Worst trade | Deepest dip |",
              "|---|---|---|---|---|---|---|---|---|---|"]
     rs = lambda v: "-" if v is None else f"Rs {v:+,}"
-    for name, x in (("A Overnight futures", A), ("B Gap-up auction short", B)):
+    for name, x in (("A Overnight futures", A), ("B Gap-up auction short", B), ("C Gap-up basket (13 stocks)", Cp)):
         win = "-" if x["win_pct"] is None else f"{x['win_pct']}%"
         lines.append(f"| {name} | Rs {x['start']:,} | Rs {x['now']:,} | Rs {x['pnl']:+,} | {x['ret_pct']:+.2f}% | {x['trades']} | "
                      f"{win} | {rs(x['avg_net_rs'])} | {rs(x['worst_rs'])} | {x['max_dip_pct']}% |")
     c = dash["combined"]
-    lines += [f"| **Both** | Rs {c['start']:,} | Rs {c['now']:,} | Rs {c['pnl']:+,} | {c['ret_pct']:+.2f}% | | | | | |", "",
+    lines += [f"| **All three** | Rs {c['start']:,} | Rs {c['now']:,} | Rs {c['pnl']:+,} | {c['ret_pct']:+.2f}% | | | | | |", "",
               f"Open overnight position: {pos['lots']} lot(s) = {pos['qty']:,} {pos['symbol']} bought at {pos['entry']:.4f} on {pos['date']}"
               if pos else "Open overnight position: none", "",
+              f"Plan C starts {m['start_c']}. Stocks in priority order: {', '.join(C_['stocks'])}.", "",
               "Rules: `paper/settings.json`. Results: `state/trades.csv`, `state/days.csv`.", "",
               "*Research on past data / paper trading only, not investment advice.*"]
     (ROOT / "README.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -565,15 +725,16 @@ def weekly(st, now, dash):
     wk = f"{d.isocalendar()[0]}-W{d.isocalendar()[1]:02d}"
     if d.weekday() != 4 or m.get("last_weekly") == wk:
         return
-    A, B, c = dash["plans"]["A"], dash["plans"]["B"], dash["combined"]
+    P, c = dash["plans"], dash["combined"]
     week_tr = [x for x in dash["trades"] if (d - date.fromisoformat(x["exit_date"])).days < 7]
     body = [f"@AjBhutada weekly report for the VI paper trader, week ending {d:%d %b %Y}.", "",
             "| Plan | Now | P&L since start | This week | Trades this week |", "|---|---|---|---|---|"]
-    for name, p, x in (("A Overnight", "A", A), ("B Gap-up short", "B", B)):
+    for name, p in (("A Overnight", "A"), ("B Gap-up short", "B"), ("C Gap-up basket", "C")):
+        x = P[p]
         wk_pnl = sum(float(t["net_rs"]) for t in week_tr if t["plan"].startswith(p))
         body.append(f"| {name} | Rs {x['now']:,} | Rs {x['pnl']:+,} ({x['ret_pct']:+.2f}%) | Rs {wk_pnl:+,.0f} | "
                     f"{sum(t['plan'].startswith(p) for t in week_tr)} |")
-    body += [f"| **Both** | Rs {c['now']:,} | Rs {c['pnl']:+,} ({c['ret_pct']:+.2f}%) | | |", "",
+    body += [f"| **All three** | Rs {c['now']:,} | Rs {c['pnl']:+,} ({c['ret_pct']:+.2f}%) | | |", "",
              "Dashboard: https://ajbhutada.github.io/vi-paper-trader/", "",
              "*Research on past data / paper trading only, not investment advice.*"]
     (ROOT / "reports").mkdir(exist_ok=True)
@@ -584,7 +745,8 @@ def weekly(st, now, dash):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--now"); ap.add_argument("--state", default=str(ROOT / "state"))
-    ap.add_argument("--start"); ap.add_argument("--no-report", action="store_true")
+    ap.add_argument("--start"); ap.add_argument("--start-c", help="Plan C start date for a replay (default: settings)")
+    ap.add_argument("--no-report", action="store_true")
     a = ap.parse_args()
     now = datetime.strptime(a.now, "%Y-%m-%d %H:%M").replace(tzinfo=IST) if a.now else datetime.now(IST)
     if not a.now and now.time() < datetime.strptime("09:17", "%H:%M").time() and now.time() > datetime.strptime("09:00", "%H:%M").time():
@@ -594,15 +756,17 @@ def main():
         wait = (datetime.combine(now.date(), datetime.strptime("15:31:10", "%H:%M:%S").time(), IST) - now).total_seconds()
         log(f"waiting {wait:.0f} s for the 15:29 candle"); time.sleep(max(0, wait)); now = datetime.now(IST)
     st = State(a.state)
-    st.init(a.start or S["start_date"])
-    log(f"run at {now:%d %b %Y %H:%M} IST; last morning {st.meta['last_morning']}, last evening {st.meta['last_evening']}")
+    st.init(a.start or S["start_date"], a.start_c)
+    log(f"run at {now:%d %b %Y %H:%M} IST; last morning {st.meta['last_morning']}, last evening {st.meta['last_evening']}, "
+        f"last Plan C {st.meta['last_c']}")
     Bot(st, now).run()
     st.save()
     if not a.no_report:
         dash = report(st, now)
         weekly(st, now, dash)
         st.save()
-    log(f"done. A Rs {st.meta['equity']['A']:,.0f}  B Rs {st.meta['equity']['B']:,.0f}  open: {bool(st.meta['open'])}")
+    e = st.meta["equity"]
+    log(f"done. A Rs {e['A']:,.0f}  B Rs {e['B']:,.0f}  C Rs {e['C']:,.0f}  open: {bool(st.meta['open'])}")
 
 
 if __name__ == "__main__":

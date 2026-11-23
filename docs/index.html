@@ -6,9 +6,9 @@
 <title>VI Paper Trader</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-  :root { --bg:#f7f7f5; --card:#ffffff; --ink:#1d1d1f; --muted:#6b6b70; --line:#e4e4e0; --a:#2f6fd6; --b:#c2571a; --t:#2e8b57; --pos:#1f8a4c; --neg:#c23b3b; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#141416; --card:#1d1d20; --ink:#ececee; --muted:#9a9aa2; --line:#2c2c31; --a:#6ea0ff; --b:#ff9a5c; --t:#5fcf8f; --pos:#4fd18a; --neg:#ff7676; } }
-  :root[data-theme="dark"] { --bg:#141416; --card:#1d1d20; --ink:#ececee; --muted:#9a9aa2; --line:#2c2c31; --a:#6ea0ff; --b:#ff9a5c; --t:#5fcf8f; --pos:#4fd18a; --neg:#ff7676; }
+  :root { --bg:#f7f7f5; --card:#ffffff; --ink:#1d1d1f; --muted:#6b6b70; --line:#e4e4e0; --a:#2f6fd6; --b:#c2571a; --c:#7b4fc9; --t:#2e8b57; --pos:#1f8a4c; --neg:#c23b3b; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#141416; --card:#1d1d20; --ink:#ececee; --muted:#9a9aa2; --line:#2c2c31; --a:#6ea0ff; --b:#ff9a5c; --c:#b495ff; --t:#5fcf8f; --pos:#4fd18a; --neg:#ff7676; } }
+  :root[data-theme="dark"] { --bg:#141416; --card:#1d1d20; --ink:#ececee; --muted:#9a9aa2; --line:#2c2c31; --a:#6ea0ff; --b:#ff9a5c; --c:#b495ff; --t:#5fcf8f; --pos:#4fd18a; --neg:#ff7676; }
   body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
   main { max-width:1100px; margin:0 auto; padding:20px 16px 40px; }
   h1 { font-size:22px; margin:0 0 4px; } .sub { color:var(--muted); margin:0 0 18px; }
@@ -27,7 +27,7 @@
   .scroll { overflow-x:auto; }
   .foot { color:var(--muted); font-size:13px; margin-top:20px; }
   .tag { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px; color:#fff; }
-  .ta { background:var(--a); } .tb { background:var(--b); }
+  .ta { background:var(--a); } .tb { background:var(--b); } .tc { background:var(--c); }
   .rowtitle { font-size:15px; margin:6px 0 8px; } .muted { color:var(--muted); font-weight:400; font-size:13px; }
 </style>
 </head>
@@ -37,13 +37,13 @@
   <p class="sub" id="sub">Loading…</p>
   <h3 class="rowtitle">Paper bot <span class="muted">— prices read afterwards from recorded ticks (the ideal result)</span></h3>
   <div class="cards" id="cards"></div>
-  <h3 class="rowtitle">Live shadow bot <span class="muted">— acts in real time, orders go to the Upstox sandbox (what a real bot would get)</span></h3>
+  <h3 class="rowtitle">Live shadow bot <span class="muted">— acts in real time, orders go to the Upstox sandbox (what a real bot would get). Plans A and B only; Plan C is paper-only for now.</span></h3>
   <div class="cards" id="scards"></div>
   <div class="panel"><h3>Account value (₹) — solid = paper, dashed = live shadow</h3><div class="chartbox"><canvas id="eq"></canvas></div></div>
   <div class="panel"><h3>Paper vs live shadow, trade by trade</h3>
     <p class="sub" style="margin:0 0 8px">Same quantities in both; any difference is execution: the price seen live at that second, timing, or a session that was missed. Gap = shadow price − paper price (paise per share; for buys, positive = shadow paid more).</p>
     <div class="scroll"><table id="cmp"></table></div></div>
-  <div class="panel"><h3>Open position</h3><div id="open"></div></div>
+  <div class="panel"><h3>Open position</h3><div id="open"></div><p class="sub" style="margin:6px 0 0">Plans B and C never hold overnight: every short is bought back the same morning.</p></div>
   <div class="panel"><h3>Paper trades (newest first)</h3><div class="scroll"><table id="tr"></table></div></div>
   <div class="panel"><h3>Live shadow bot — what happened each session</h3>
     <p class="sub" style="margin:0 0 8px">Morning session starts 08:40 (pre-open orders at 09:00:05, limit buy-back at 09:16:00, market at 09:17:00 if unfilled); afternoon session starts 15:05 (limit buy at 15:20:00, market at 15:25:00 if unfilled). Orders go to the Upstox sandbox (pretend, no money).</p>
@@ -52,7 +52,8 @@
   <div class="panel"><h3>Rules</h3>
     <p><span class="tag ta">A</span> <b>Overnight futures</b>: at 15:20 a limit buy 1 paisa below the last price (filled only if the market trades below it); if not filled by 15:25, market buy at the best ask. Sell at the next 09:15 pre-open auction price. As many lots as ₹ allows with a cushion. Switch to next month when fewer than 5 trading days are left before expiry.</p>
     <p><span class="tag tb">B</span> <b>Gap-up auction short</b>: a limit sell at yesterday's last price × 1.01 in the 09:00–09:08 pre-open; it fills only if the auction price is that high, and then at the auction price. Short 5× the account (max ₹50 lakh). Buy back with a limit 1 paisa below the price at 09:16; if not filled by 09:17, market buy at the best ask.</p>
-    <p>Both start with ₹5 lakh and compound. All charges per order. Auction prices from Upstox 1-minute candles; other fills from recorded ticks (minute price + ½ paisa only if the recorder missed it, noted on the trade).</p>
+    <p><span class="tag tc">C</span> <b>Gap-up basket</b>: the same idea as B on 13 stocks, at 2%: a limit sell at yesterday's last price × 1.02 in the pre-open, filled at the auction price. Up to 3 stocks a morning, taken in the priority order below; each short is at most 5% of what that stock usually trades in its opening minute (last 20 days), at most ₹50 lakh, and all together at most 5× the Plan C account. Buy back at 09:20 at the best ask. Priority order (best results over the last 12 months first, re-ranked every 6 months): <span id="cstocks"></span>.</p>
+    <p>All three start with ₹5 lakh and compound. All charges per order. Auction prices from Upstox 1-minute candles; other fills from recorded ticks (minute price + ½ paisa only if the recorder missed it, noted on the trade).</p>
   </div>
   <p class="foot">Research on past data / paper trading only, not investment advice.</p>
 </main>
@@ -62,29 +63,34 @@ const sgn = v => (v > 0 ? "+" : v < 0 ? "−" : "") + "₹" + Math.abs(Math.roun
 const cls = v => v > 0 ? "pos" : v < 0 ? "neg" : "";
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 fetch("data/dashboard.json?" + Date.now()).then(r => r.json()).then(d => {
-  document.getElementById("sub").textContent = `Started ${d.start_date} · last update ${d.updated} · ₹5 lakh per plan, compounding`;
+  document.getElementById("sub").textContent = `Started ${d.start_date} (Plan C from ${d.start_c || "25 Nov"}) · last update ${d.updated} · ₹5 lakh per plan, compounding`;
   const card = (title, x, extra) => `<div class="card"><h2>${title}</h2>
     <div class="big ${cls(x.pnl)}">${inr(x.now)}</div>
     <div class="kv"><span>P&amp;L</span><b class="${cls(x.pnl)}">${sgn(x.pnl)} (${x.ret_pct >= 0 ? "+" : ""}${x.ret_pct}%)</b>${extra || ""}</div></div>`;
   const pe = x => `<span>Trades</span><b>${x.trades}</b><span>Win rate</span><b>${x.win_pct ?? "–"}%</b>
     <span>Avg per trade</span><b>${x.avg_net_rs == null ? "–" : sgn(x.avg_net_rs)} (${x.avg_net_bps ?? "–"} bps)</b>
     <span>Worst trade</span><b>${x.worst_rs == null ? "–" : sgn(x.worst_rs)}</b><span>Deepest dip</span><b>${x.max_dip_pct}%</b>`;
+  const C = d.plans.C;
   document.getElementById("cards").innerHTML = card("A · Overnight futures", d.plans.A, pe(d.plans.A)) +
-    card("B · Gap-up auction short", d.plans.B, pe(d.plans.B)) + card("Both plans", d.combined, "");
+    card("B · Gap-up auction short", d.plans.B, pe(d.plans.B)) +
+    (C ? card("C · Gap-up basket (13 stocks)", C, pe(C) + `<span style="grid-column:1/-1;margin-top:4px">Stocks traded: <b style="text-align:left">${(C.stocks_traded || []).join(", ") || "none yet"}</b></span>`) : "") +
+    card(C ? "All three plans" : "Both plans", d.combined, "");
+  document.getElementById("cstocks").textContent = ((d.plan_c || {}).stocks || []).map((s, i) => `${i + 1}. ${s}`).join("  ");
   const sh = d.shadow || {};
+  const abNow = d.plans.A.now + d.plans.B.now;
   if (sh.plans) {
     const se = x => `<span>Trades</span><b>${x.trades}</b><span>Wins</span><b>${x.wins}</b>
       <span>vs paper</span><b class="${cls(x.vs_paper_rs ?? 0)}">${x.vs_paper_rs == null ? "–" : sgn(x.vs_paper_rs)}</b>
       <span>Missed trades</span><b>${x.missed}</b>`;
     document.getElementById("scards").innerHTML = card("A · Overnight (live)", sh.plans.A, se(sh.plans.A)) +
       card("B · Gap-up short (live)", sh.plans.B, se(sh.plans.B)) +
-      card("Both plans (live)", sh.combined, `<span>Difference vs paper</span><b class="${cls(sh.combined.now - d.combined.now)}">${sgn(sh.combined.now - d.combined.now)}</b>`);
+      card("A + B (live)", sh.combined, `<span>Difference vs paper A + B</span><b class="${cls(sh.combined.now - abNow)}">${sgn(sh.combined.now - abNow)}</b>`);
   } else {
     document.getElementById("scards").innerHTML = `<div class="card">Shadow results appear after the first live session is booked${sh.error ? " (" + sh.error + ")" : ""}.</div>`;
   }
   const days = d.days || [];
   const lab = [d.start_date + " start"].concat(days.map(x => x.date));
-  const s0 = d.plans.A.start, s1 = d.plans.B.start;
+  const s0 = d.plans.A.start, s1 = d.plans.B.start, s2 = C ? C.start : 0;
   const curve = (sh.curve || []);
   const live = k => { let v = k === "A" ? s0 : s1; const m = Object.fromEntries(curve.map(c => [c.date, c[k]]));
     return [v].concat(days.map(x => (m[x.date] != null ? (v = m[x.date]) : v))); };
@@ -94,12 +100,13 @@ fetch("data/dashboard.json?" + Date.now()).then(r => r.json()).then(d => {
       { label: "A live shadow", data: live("A"), borderColor: css("--a"), borderDash: [6, 4], pointRadius: 0, tension: .1 },
       { label: "B gap-up short", data: [s1].concat(days.map(x => +x.equity_B)), borderColor: css("--b"), pointRadius: 0, tension: .1 },
       { label: "B live shadow", data: live("B"), borderColor: css("--b"), borderDash: [6, 4], pointRadius: 0, tension: .1 },
-      { label: "Both (paper)", data: [s0 + s1].concat(days.map(x => +x.total)), borderColor: css("--t"), pointRadius: 0, tension: .1, yAxisID: "y2" } ] },
+      ...(C ? [{ label: "C gap-up basket", data: [s2].concat(days.map(x => +(x.equity_C ?? s2))), borderColor: css("--c"), pointRadius: 0, tension: .1 }] : []),
+      { label: C ? "All three (paper)" : "Both (paper)", data: [s0 + s1 + s2].concat(days.map(x => +x.total)), borderColor: css("--t"), pointRadius: 0, tension: .1, yAxisID: "y2" } ] },
     options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
       plugins: { legend: { labels: { color: css("--ink") } }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${inr(c.parsed.y)}` } } },
       scales: { x: { ticks: { color: css("--muted"), maxTicksLimit: 8 }, grid: { color: css("--line") } },
                 y: { ticks: { color: css("--muted"), callback: v => "₹" + (v / 1e5).toFixed(2) + "L" }, grid: { color: css("--line") }, title: { display: true, text: "each plan", color: css("--muted") } },
-                y2: { position: "right", ticks: { color: css("--muted"), callback: v => "₹" + (v / 1e5).toFixed(2) + "L" }, grid: { display: false }, title: { display: true, text: "both", color: css("--muted") } } } } });
+                y2: { position: "right", ticks: { color: css("--muted"), callback: v => "₹" + (v / 1e5).toFixed(2) + "L" }, grid: { display: false }, title: { display: true, text: "all plans", color: css("--muted") } } } } });
   const f4 = v => v == null ? "–" : (+v).toFixed(4);
   const gp = v => v == null ? "–" : (v > 0 ? "+" : "") + v;
   const cmp = (sh.compare || []).slice().reverse();
@@ -117,14 +124,16 @@ fetch("data/dashboard.json?" + Date.now()).then(r => r.json()).then(d => {
     (o && so ? `<p class="sub" style="margin:6px 0 0">Entry difference: ${((so.entry - o.entry) * 100).toFixed(2)} paise per share = ${sgn((so.entry - o.entry) * so.qty * -1)} for the live bot vs paper.</p>` : "");
   const tr = (d.trades || []).slice().reverse();
   document.getElementById("tr").innerHTML = `<tr><th class="l">Plan</th><th class="l">Date</th><th class="l">Contract</th><th>Qty</th><th>Entry</th><th>Exit</th><th>Gross</th><th>Charges</th><th>Net</th><th>Net bps</th><th>Account after</th><th class="l">Note</th></tr>` +
-    (tr.length ? tr.map(t => `<tr><td><span class="tag ${t.plan[0] === "A" ? "ta" : "tb"}">${t.plan[0]}</span></td><td class="l">${t.date}${t.exit_date !== t.date ? " → " + t.exit_date : ""}</td><td class="l">${t.instrument}</td>
+    (tr.length ? tr.map(t => `<tr><td><span class="tag t${t.plan[0].toLowerCase()}">${t.plan[0]}</span></td><td class="l">${t.date}${t.exit_date !== t.date ? " → " + t.exit_date : ""}</td><td class="l">${t.instrument}</td>
       <td>${(+t.qty).toLocaleString("en-IN")}</td><td>${(+t.entry).toFixed(4)}</td><td>${(+t.exit).toFixed(4)}</td><td class="${cls(+t.gross_rs)}">${sgn(+t.gross_rs)}</td>
       <td>${inr(+t.charges_rs)}</td><td class="${cls(+t.net_rs)}"><b>${sgn(+t.net_rs)}</b></td><td>${t.net_bps}</td><td>${inr(+t.equity_after)}</td><td class="l">${t.note}</td></tr>`).join("")
       : `<tr><td colspan="12" class="l">No trades yet.</td></tr>`);
   const r = d.reference;
   document.getElementById("ref").innerHTML = `Replaying the last 12 months of history on today's prices: <b>A ≈ +${r.overnight_last12m_pct}%</b> a year
     (about ${r.overnight_net_bps_per_night} bps a night after costs) and <b>B ≈ +${r.gapshort_last12m_pct}%</b> a year (about ${r.gapshort_net_bps_per_trade_2026} bps per trade,
-    roughly ${r.gapup_days_per_month} gap-up mornings a month). Three months is a short test: expect B to have only 6–10 trades.`;
+    roughly ${r.gapup_days_per_month} gap-up mornings a month). Three months is a short test: expect B to have only 6–10 trades.` +
+    (r.planc_fresh_2026_pct ? `<br><b>C</b>: a fresh ₹5 lakh in Jan–Nov 2026 would have grown about <b>+${r.planc_fresh_2026_pct}%</b>, with about ${r.planc_trades_per_month} trades a month.
+    Over 5 years (from Jan 2022, compounding) about +${r.planc_5yr_compound_pct_per_year}% a year: the % falls as the pot grows, because each stock only takes so much money at the open.` : "");
 }).catch(e => { document.getElementById("sub").textContent = "Could not load data: " + e; });
 const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
 const badge = r => {
