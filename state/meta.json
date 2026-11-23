@@ -5,10 +5,20 @@
   "B": 500000
  },
  "last_morning": "2026-11-23",
- "last_evening": null,
- "open": null,
+ "last_evening": "2026-11-23",
+ "open": {
+  "date": "2026-11-23",
+  "key": "NSE_FO|58992",
+  "symbol": "IDEA FUT 29 DEC 26",
+  "lot": 71475,
+  "lots": 1,
+  "qty": 71475,
+  "entry": 12.01,
+  "entry_time": "15:25:01",
+  "how": "tick best ask at 15:25:01 (ask 12.01 x 1,072,125)"
+ },
  "alerted": {},
- "last_run": "2026-11-23T14:46+05:30",
+ "last_run": "2026-11-23T16:05+05:30",
  "holidays": {
   "fetched": "2026-11-23",
   "days": [

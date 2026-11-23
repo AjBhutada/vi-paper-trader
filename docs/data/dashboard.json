@@ -1,5 +1,5 @@
 {
- "updated": "23 Nov 2026 14:46 IST",
+ "updated": "23 Nov 2026 16:05 IST",
  "start_date": "2026-11-23",
  "plans": {
   "A": {
@@ -39,8 +39,30 @@
   "pnl": 0,
   "ret_pct": 0.0
  },
- "open": null,
- "days": [],
+ "open": {
+  "date": "2026-11-23",
+  "key": "NSE_FO|58992",
+  "symbol": "IDEA FUT 29 DEC 26",
+  "lot": 71475,
+  "lots": 1,
+  "qty": 71475,
+  "entry": 12.01,
+  "entry_time": "15:25:01",
+  "how": "tick best ask at 15:25:01 (ask 12.01 x 1,072,125)"
+ },
+ "days": [
+  {
+   "date": "2026-11-23",
+   "equity_A": "500000",
+   "equity_B": "500000",
+   "total": "1000000",
+   "A_lots_overnight": "1",
+   "A_contract": "IDEA FUT 29 DEC 26",
+   "gap_pct": "0.0",
+   "B_traded": "False",
+   "note": ""
+  }
+ ],
  "trades": [],
  "reference": {
   "overnight_last12m_pct": 58,
@@ -85,6 +107,54 @@
    },
    "max_gap_seconds": 60,
    "_note": "Fills outside the auction come from the tick recorder's encrypted daily files (needs the TICKS_KEY secret). The bot waits for them until these times, then falls back to minute candles and says so in the trade note."
+  }
+ },
+ "shadow": {
+  "plans": {
+   "A": {
+    "start": 500000,
+    "now": 500000,
+    "pnl": 0,
+    "ret_pct": 0.0,
+    "trades": 0,
+    "wins": 0,
+    "vs_paper_rs": null,
+    "missed": 0
+   },
+   "B": {
+    "start": 500000,
+    "now": 500000,
+    "pnl": 0,
+    "ret_pct": 0.0,
+    "trades": 0,
+    "wins": 0,
+    "vs_paper_rs": null,
+    "missed": 0
+   }
+  },
+  "combined": {
+   "now": 1000000,
+   "pnl": 0,
+   "ret_pct": 0.0
+  },
+  "compare": [
+   {
+    "plan": "A",
+    "date": "2026-11-23",
+    "exit_date": "",
+    "qty": 71475,
+    "instrument": "IDEA FUT 29 DEC 26",
+    "shadow_entry": 12.01,
+    "shadow_exit": null,
+    "orders": "buy: logged only 15:25:00 (no sandbox token)"
+   }
+  ],
+  "curve": [],
+  "open": {
+   "date": "2026-11-23",
+   "qty": 71475,
+   "instrument": "IDEA FUT 29 DEC 26",
+   "entry": 12.01
   }
  }
 }
