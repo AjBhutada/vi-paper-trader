@@ -1,0 +1,77 @@
+name: vi-paper
+# Vodafone Idea paper trader (paper only, no orders). One job does whatever is due:
+#   morning (from 09:17 India): close the overnight futures position at the 09:15 auction price; gap-up short check
+#   evening (from 15:31 India): open the next overnight position at the 15:00-15:29 average price
+# Main starts come from cron-job.org (workflow_dispatch) at 09:18 and 15:33 India time. The GitHub timers below are
+# only backups: they often run late, and a late run just catches up (all prices come from 1-minute candles).
+# Times below are UTC; India = UTC + 5:30.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "53 3 * * 1-5"     # 09:23 India - backup morning
+    - cron: "41 4 * * 1-5"     # 10:11 India - backup morning
+    - cron: "47 10 * * 1-5"    # 16:17 India - backup evening
+    - cron: "19 14 * * 1-5"    # 19:49 India - backup evening
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: vi-paper
+  cancel-in-progress: false
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Restore cached candles
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: candles-${{ github.run_id }}
+          restore-keys: candles-
+      - name: Paper-trade whatever is due
+        run: python paper/vi_bot.py
+      - name: Failure email (GitHub issue)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --title "VI paper bot: a run failed ($(TZ=Asia/Kolkata date +'%d %b %H:%M') IST)" \
+            --body "@AjBhutada the VI paper bot stopped with an error. The next run will catch the day up. Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      - name: Problem email (GitHub issue)
+        if: always() && hashFiles('state/alerts_pending.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          { echo "@AjBhutada the VI paper bot needs a look:"; echo; cat state/alerts_pending.md; echo;
+            echo "Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"; } > "$RUNNER_TEMP/alert.md"
+          gh issue create --title "VI paper bot alert: $(TZ=Asia/Kolkata date +'%d %b %H:%M') IST" --body-file "$RUNNER_TEMP/alert.md"
+          rm -f state/alerts_pending.md
+      - name: Weekly report email (GitHub issue)
+        if: always() && hashFiles('reports/weekly_pending.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --title "VI paper trader weekly report: $(TZ=Asia/Kolkata date +'%d %b %Y')" --body-file reports/weekly_pending.md
+          rm -f reports/weekly_pending.md
+      - name: Save results and the dashboard
+        id: save
+        if: always()
+        run: |
+          git config user.name "vi-paper-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A state docs/data README.md reports 2>/dev/null || true
+          git commit -q -m "VI paper trading: $(TZ=Asia/Kolkata date +'%F %H:%M')" || echo "Nothing new to save"
+          ok=0; for i in 1 2 3 4; do git pull -q --rebase && git push -q && { ok=1; break; }; git rebase --abort 2>/dev/null; sleep 10; done
+          [ "$ok" = 1 ] || { echo "::error::could not save results"; exit 1; }
+      - name: Save failed email (GitHub issue)
+        if: always() && steps.save.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --title "VI paper bot: results not saved ($(TZ=Asia/Kolkata date +'%d %b %H:%M') IST)" \
+            --body "@AjBhutada the run could not save its results to the repo. The next run recomputes them from candles. Log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

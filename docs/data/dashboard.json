@@ -1,0 +1,84 @@
+{
+ "updated": "23 Nov 2026 14:16 IST",
+ "start_date": "2026-11-24",
+ "plans": {
+  "A": {
+   "start": 500000,
+   "now": 500000,
+   "pnl": 0,
+   "ret_pct": 0.0,
+   "trades": 0,
+   "wins": 0,
+   "win_pct": null,
+   "avg_net_rs": null,
+   "avg_net_bps": null,
+   "median_net_bps": null,
+   "best_rs": null,
+   "worst_rs": null,
+   "max_dip_pct": 0.0
+  },
+  "B": {
+   "start": 500000,
+   "now": 500000,
+   "pnl": 0,
+   "ret_pct": 0.0,
+   "trades": 0,
+   "wins": 0,
+   "win_pct": null,
+   "avg_net_rs": null,
+   "avg_net_bps": null,
+   "median_net_bps": null,
+   "best_rs": null,
+   "worst_rs": null,
+   "max_dip_pct": 0.0
+  }
+ },
+ "combined": {
+  "start": 1000000,
+  "now": 1000000,
+  "pnl": 0,
+  "ret_pct": 0.0
+ },
+ "open": null,
+ "days": [],
+ "trades": [],
+ "reference": {
+  "overnight_last12m_pct": 58,
+  "gapshort_last12m_pct": 61,
+  "overnight_net_bps_per_night": 11.5,
+  "gapshort_net_bps_per_trade_2026": 41,
+  "gapup_days_per_month": 2.5,
+  "_note": "What the research expects (Nov 2025 - Nov 2026 replay on today's terms). The paper test checks whether this still holds."
+ },
+ "last_gap_pct": null,
+ "rules": {
+  "start_date": "2026-11-24",
+  "underlying": "IDEA",
+  "equity_key": "NSE_EQ|INE669E01016",
+  "capital_overnight": 500000,
+  "capital_gapshort": 500000,
+  "overnight_entry_window": [
+   "15:00",
+   "15:29"
+  ],
+  "overnight_exit_minute": "09:15",
+  "roll_trading_days": 2,
+  "fut_margin_frac": 0.43,
+  "lot_cushion_frac": 0.137,
+  "gap_threshold_pct": 1.0,
+  "short_entry_minute": "09:15",
+  "short_cover_minute": "09:16",
+  "short_leverage": 5.0,
+  "short_cap_rs": 5000000,
+  "slip_paise": 0.5,
+  "brokerage_per_order": 20,
+  "stt_fut_sell": 0.0005,
+  "stt_intraday_sell": 0.00025,
+  "txn_fut": 1.73e-05,
+  "txn_equity": 2.97e-05,
+  "stamp_fut_buy": 2e-05,
+  "stamp_intraday_buy": 3e-05,
+  "sebi": 1e-06,
+  "gst": 0.18
+ }
+}
