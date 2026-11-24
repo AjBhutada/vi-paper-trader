@@ -1,5 +1,5 @@
 {
- "updated": "24 Nov 2026 08:36 IST",
+ "updated": "24 Nov 2026 09:17 IST",
  "start_date": "2026-11-23",
  "start_c": "2026-11-25",
  "plans": {
@@ -109,10 +109,10 @@
   "gapshort_net_bps_per_trade_2026": 41,
   "gapup_days_per_month": 2.5,
   "_note": "What the research expects (Nov 2025 - Nov 2026 replay on today's terms). The paper test checks whether this still holds.",
-  "planc_fresh_2026_pct": 108,
+  "planc_fresh_2026_pct": 53,
   "planc_trades_per_month": 5,
-  "planc_5yr_compound_pct_per_year": 65,
-  "_planc_note": "Plan C: a fresh Rs 5 lakh in Jan-Nov 2026 with the last-12-months order -> +108%; about 5 trades a month; 5 years compounding from Jan 2022 about +65%/yr (lower % as the pot grows: each stock only takes so much money at the open)."
+  "planc_5yr_compound_pct_per_year": 61.5,
+  "_planc_note": "Plan C with the 2:2:1 rule: a fresh Rs 5 lakh in Jan-Nov 2026 with the last-12-months order -> +53%; about 5 trades a month; compounding from Jan 2022 about 61.5% a year (Rs 5 lakh -> Rs 51.9 lakh). The % is lower as the pot grows: each stock only takes so much money at the open. These use the final auction prices to choose stocks; the live bot must choose at 09:06:30."
  },
  "last_gap_pct": 0.0,
  "rules": {
@@ -185,11 +185,13 @@
    "live_pick_at": "09:06:30",
    "_live_pick_note": "Live shadow bot only (added 24 Nov 2026): the auction price is not known when orders must go in, so at this time it reads each stock's INDICATIVE auction price (Upstox feed field 'iep', sent only during the pre-open) and applies the rules above with it: stocks already 2%+ up, in priority order, up to 3 and 5 x the account, each get a limit sell at the 2% price. Before 09:07 because NSE closes pre-open order entry at a random second between 09:07 and 09:08. Live sizes use the limit price (paper uses the auction price). Stocks that only reach 2% after this moment are traded by the paper bot but not live; the shadow log shows each one.",
    "leverage": 5.0,
+   "max_position_x": 2.0,
+   "_max_position_note": "Owner's 2:2:1 rule (24 Nov 2026): each stock at most 2 x the Plan C account, so the 5 x in total is spread 2x + 2x + 1x over up to 3 stocks instead of one stock taking it all. Research (plan_c_compound.py, Rs 5 lakh compounding Jan 2022 - Nov 2026, order re-picked every 6 months): Rs 51.9 lakh, 61.5% a year, deepest dip -7.5%, worst trade -2.9% of the account; the old rule Rs 57.8 lakh, 65.0% a year, but dip -13.7% and worst trade -6.7%.",
    "max_positions": 3,
    "liquidity_frac": 0.05,
    "cap_rs": 5000000,
    "min_position_rs": 50000,
-   "_note": "Plan C (owner approved 23 Nov 2026): gap-up auction short on a basket. Real-bot rule: limit sell at yesterday's last price x 1.02 (rounded up to the price step) in the 09:00-09:08 pre-open; it fills only if the auction price is at or above it, at the auction price (= the 09:15 minute's open). Gaps above 20% are ignored (corporate actions). Each morning up to 3 signals in priority order; each position <= 5% of the stock's median 09:15-minute traded value over the last 20 trading days (so our order would not move the price), <= Rs 50 lakh, from what is left of 5 x the Plan C account; positions under Rs 50,000 are skipped. Buy back at 09:20 at the best ask from the tick recorder (walking the depth); if the recorder missed it, the 09:20 minute's open + half a price step (at least 0.02%). Cash intraday charges. Separate from Plan B: on a VI gap-up of 2%+ both plans short VI."
+   "_note": "Plan C (owner approved 23 Nov 2026): gap-up auction short on a basket. Real-bot rule: limit sell at yesterday's last price x 1.02 (rounded up to the price step) in the 09:00-09:08 pre-open; it fills only if the auction price is at or above it, at the auction price (= the 09:15 minute's open). Gaps above 20% are ignored (corporate actions). Each morning up to 3 signals in priority order; each position <= 5% of the stock's median 09:15-minute traded value over the last 20 trading days (so our order would not move the price), <= Rs 50 lakh, <= 2 x the Plan C account (2:2:1 rule), from what is left of 5 x the Plan C account; positions under Rs 50,000 are skipped. Buy back at 09:20 at the best ask from the tick recorder (walking the depth); if the recorder missed it, the 09:20 minute's open + half a price step (at least 0.02%). Cash intraday charges. Separate from Plan B: on a VI gap-up of 2%+ both plans short VI."
   }
  },
  "shadow": {
@@ -236,12 +238,12 @@
    {
     "plan": "A",
     "date": "2026-11-23",
-    "exit_date": "",
+    "exit_date": "2026-11-24",
     "qty": 71475,
     "instrument": "IDEA FUT 29 DEC 26",
     "shadow_entry": 12.01,
     "shadow_exit": null,
-    "orders": "buy: logged only 15:25:00 (no sandbox token)",
+    "orders": "buy: logged only 15:25:00 (no sandbox token); sell: -",
     "paper_entry": 12.01,
     "paper_qty": 71475,
     "entry_gap_paise": 0.0
