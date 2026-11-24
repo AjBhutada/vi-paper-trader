@@ -315,6 +315,12 @@ def main():
     if (OUT / f"{day}_{a.part}.json").exists() and not a.at:
         print(f"{day} {a.part}: this session already ran today - nothing to do", flush=True)
         return
+    hms = clock.now().strftime("%H:%M:%S")
+    if (a.part == "morning" and hms < "08:15:00") or (a.part == "afternoon" and hms < "14:30:00"):
+        # GitHub sometimes fires a timer hours late (00:10 IST on 24 Nov 2026): don't sit waiting for hours and
+        # block the real start (same concurrency group); the 08:40 / 15:05 start will run the session
+        print(f"{day} {a.part}: started at {hms[:5]} IST, too early - the regular start will run this session", flush=True)
+        return
     st = vb.State(ROOT / "state")
     st.init(S["start_date"])
     m = st.meta

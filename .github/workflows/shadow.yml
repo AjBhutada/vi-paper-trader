@@ -22,7 +22,7 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 60     # the morning session runs 08:40 -> 09:21
+    timeout-minutes: 75     # the morning session runs 08:40 -> 09:21 (starts before 08:15 exit at once)
     steps:
       - uses: actions/checkout@v4
         with:
