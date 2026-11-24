@@ -4,9 +4,8 @@ name: vi-shadow
 # time, early: it connects, then waits for the exact second (09:00:05 A+B pre-open orders, 09:06:30 Plan C pick,
 # 09:16:00 B buy-back, 09:20:00 C buy-back; 15:20:00 / 15:25:00 A buy).
 on:
-  schedule:                    # backups only (GitHub timers often run late); a second start the same day does nothing
-    - cron: "17 3 * * 1-5"     # 08:47 India
-    - cron: "43 9 * * 1-5"     # 15:13 India
+  # Started ONLY by cron-job.org (08:40 morning, 15:05 afternoon). GitHub's own timers were removed on 24 Nov 2026: they fire
+  # hours late, and a late morning start only blocks the real one. Starts before 08:15 / 14:30 IST exit at once.
   workflow_dispatch:
     inputs:
       part:
