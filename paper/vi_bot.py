@@ -6,7 +6,7 @@ Plan B  GAP-UP SHORT: a limit sell at yesterday's last price x 1.01 in the pre-o
                       price is that high, at the auction price. Short 5x the account, buy back at 09:16.
 Plan C  GAP-UP BASKET: the same idea on 13 stocks (settings "plan_c"): limit sell at yesterday's last price x 1.02
                       in the pre-open; up to 3 stocks a morning in the list's priority order, each sized to the
-                      stock's opening liquidity; buy back at 09:20.
+                      stock's opening liquidity and at most 2x the account (2:2:1 of the 5x); buy back at 09:20.
 
 Auction prices = the 09:15 minute's open from Upstox's public 1-minute candles (exact: one price for everyone).
 Buys outside the auction = the real best ask from the tick recorder's files (needs TICKS_KEY), walking the
@@ -259,6 +259,14 @@ def opening_value_median(key, d, n=20):
     med = statistics.median(vals[x] for x in days)
     f.parent.mkdir(parents=True, exist_ok=True); f.write_text(json.dumps({"v": med, "days": len(days)}))
     return med
+
+
+def c_size_why(liq, per, budget):
+    """Which limit set a Plan C position's size (plain words for the trade note)."""
+    low = min(liq, C_["cap_rs"], budget, per)
+    return ("5% of its usual opening-minute value" if liq <= low else
+            f"{C_.get('max_position_x', C_['leverage']):g}x the account (2:2:1 rule)" if per <= low else
+            "the Rs 50 lakh cap" if C_["cap_rs"] <= low else "what was left of 5x the account")
 
 
 # ---------------------------------------------------------------- money
@@ -570,12 +578,12 @@ class Bot:
             if fmv is None:
                 passed.append(f"{x['sym']} (too little history)"); continue
             liq = C_["liquidity_frac"] * fmv
-            notional = min(liq, C_["cap_rs"], budget)
+            per = C_.get("max_position_x", C_["leverage"]) * m["equity"]["C"]      # 2:2:1 rule: each stock <= 2x the account
+            notional = min(liq, C_["cap_rs"], budget, per)
             qty = int(notional // x["o"])
             if qty * x["o"] < C_["min_position_rs"]:
                 passed.append(f"{x['sym']} (position too small)"); continue
-            why = ("5% of its usual opening-minute value" if liq <= min(C_["cap_rs"], budget) else
-                   "the Rs 50 lakh cap" if C_["cap_rs"] <= budget else "what was left of 5x the account")
+            why = c_size_why(liq, per, budget)
             x.update(qty=qty, why=why); chosen.append(x); budget -= qty * x["o"]
         fills = []
         for x in chosen:

@@ -2,17 +2,12 @@ name: vi-paper
 # Vodafone Idea paper trader (paper only, no orders). One job does whatever is due:
 #   morning: close the overnight futures position at the 09:15 auction price; gap-up short (covered at the 09:16 tick ask)
 #   evening: open the next overnight position at the 15:25 tick ask
-# Main starts come from cron-job.org (workflow_dispatch) at 12:40 and 16:05 India time, after the tick recorder uploads
-# its morning and afternoon files (exact fills need them). The GitHub timers below are
-# only backups: they often run late, and a late run just catches up (prices come from 1-minute candles and recorded ticks).
-# Times below are UTC; India = UTC + 5:30.
+# Started ONLY by cron-job.org (workflow_dispatch), after the tick recorder uploads its files (exact fills need them):
+# 12:40 India time (morning: Plans B and C, and A's sale) and 16:05 (evening: A's purchase), plus catch-up starts later in the
+# day. GitHub's own timers were removed on 24 Nov 2026: they fired hours late and only made noise. A run at any time just
+# works out whatever is due (prices come from 1-minute candles and recorded ticks), so a missed start is caught up by the next.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "37 7 * * 1-5"     # 13:07 India - backup morning (after the recorder's morning upload)
-    - cron: "41 4 * * 1-5"     # 10:11 India - backup morning
-    - cron: "47 10 * * 1-5"    # 16:17 India - backup evening
-    - cron: "19 14 * * 1-5"    # 19:49 India - backup evening
 permissions:
   contents: write
   issues: write

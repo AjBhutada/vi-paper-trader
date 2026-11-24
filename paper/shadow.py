@@ -6,8 +6,8 @@ Without a sandbox token it only logs them.
              A: sell last night's futures (market order, NRML)      - only if the paper bot holds a position
              B: limit SELL of VI shares at yesterday's last price x 1.01 (intraday)
            09:06:30 Plan C pick: read each basket stock's INDICATIVE auction price (Upstox feed field 'iep', sent only
-             during the pre-open); stocks already >= yesterday's last x 1.02 are taken in priority order, up to 3 and
-             5 x the Plan C account, and get a limit SELL at that price. (NSE closes pre-open order entry at a random
+             during the pre-open); stocks already >= yesterday's last x 1.02 are taken in priority order, up to 3, each at
+             most 2 x the Plan C account and 5 x in total (2:2:1), and get a limit SELL at that price. (NSE closes pre-open order entry at a random
              second between 09:07 and 09:08, so the pick must be done before 09:07.)
            09:15 watch the auction prices; B: if its limit was reached, buy back from 09:16:00, else cancel.
              C: each picked stock whose limit was reached is shorted at the auction price; others are cancelled.
@@ -94,12 +94,12 @@ def c_pick(rows, feed, eq_c):
         if not r["open_value"]:
             r["why_not"] = "too little history"; continue
         liq = C_["liquidity_frac"] * r["open_value"]
-        notional = min(liq, C_["cap_rs"], budget)
+        per = C_.get("max_position_x", C_["leverage"]) * eq_c                     # 2:2:1 rule: each stock <= 2x the account
+        notional = min(liq, C_["cap_rs"], budget, per)
         qty = int(notional // r["limit"])
         if qty * r["limit"] < C_["min_position_rs"]:
             r["why_not"] = "position too small"; continue
-        r.update(picked=True, qty=qty, size_why=("5% of its usual opening-minute value" if liq <= min(C_["cap_rs"], budget) else
-                                                 "the Rs 50 lakh cap" if C_["cap_rs"] <= budget else "what was left of 5x the account"))
+        r.update(picked=True, qty=qty, size_why=vb.c_size_why(liq, per, budget))
         budget -= qty * r["limit"]; n += 1
     return [r for r in rows if r["picked"]]
 
