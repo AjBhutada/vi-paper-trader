@@ -133,5 +133,20 @@
     }
    }
   ]
+ },
+ {
+  "day": "2026-11-24",
+  "session": "Morning",
+  "result": "Holiday / no trading",
+  "lines": [
+   "2026-11-24 is not a trading day"
+  ],
+  "raw": [
+   {
+    "t": "08:40:29.757",
+    "what": "skip",
+    "detail": "2026-11-24 is not a trading day"
+   }
+  ]
  }
 ]
