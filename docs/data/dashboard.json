@@ -1,5 +1,5 @@
 {
- "updated": "24 Nov 2026 07:14 IST",
+ "updated": "24 Nov 2026 08:36 IST",
  "start_date": "2026-11-23",
  "start_c": "2026-11-25",
  "plans": {
@@ -182,6 +182,8 @@
    "gap_threshold_pct": 2.0,
    "entry_minute": "09:15",
    "cover_minute": "09:20",
+   "live_pick_at": "09:06:30",
+   "_live_pick_note": "Live shadow bot only (added 24 Nov 2026): the auction price is not known when orders must go in, so at this time it reads each stock's INDICATIVE auction price (Upstox feed field 'iep', sent only during the pre-open) and applies the rules above with it: stocks already 2%+ up, in priority order, up to 3 and 5 x the account, each get a limit sell at the 2% price. Before 09:07 because NSE closes pre-open order entry at a random second between 09:07 and 09:08. Live sizes use the limit price (paper uses the auction price). Stocks that only reach 2% after this moment are traded by the paper bot but not live; the shadow log shows each one.",
    "leverage": 5.0,
    "max_positions": 3,
    "liquidity_frac": 0.05,
@@ -211,10 +213,22 @@
     "wins": 0,
     "vs_paper_rs": null,
     "missed": 0
+   },
+   "C": {
+    "start": 500000,
+    "now": 500000,
+    "pnl": 0,
+    "ret_pct": 0.0,
+    "trades": 0,
+    "wins": 0,
+    "vs_paper_rs": null,
+    "missed": 0,
+    "stocks_traded": []
    }
   },
+  "start_c": "2026-11-25",
   "combined": {
-   "now": 1000000,
+   "now": 1500000,
    "pnl": 0,
    "ret_pct": 0.0
   },
