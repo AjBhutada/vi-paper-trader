@@ -92,6 +92,8 @@
     "gap_threshold_pct": 2.0,
     "entry_minute": "09:15",
     "cover_minute": "09:20",
+    "live_pick_at": "09:06:30",
+    "_live_pick_note": "Live shadow bot only (added 24 Nov 2026): the auction price is not known when orders must go in, so at this time it reads each stock's INDICATIVE auction price (Upstox feed field 'iep', sent only during the pre-open) and applies the rules above with it: stocks already 2%+ up, in priority order, up to 3 and 5 x the account, each get a limit sell at the 2% price. Before 09:07 because NSE closes pre-open order entry at a random second between 09:07 and 09:08. Live sizes use the limit price (paper uses the auction price). Stocks that only reach 2% after this moment are traded by the paper bot but not live; the shadow log shows each one.",
     "leverage": 5.0,
     "max_positions": 3,
     "liquidity_frac": 0.05,

@@ -4,8 +4,11 @@ with the paper bot's trades (state/trades.csv). Used by vi_bot.report() for the 
 Shadow price for each leg = what a real order would have got at that instant, from the LIVE feed:
   A-buy  : best asks at 15:25:00 walked for the quantity      A-sell : futures auction (opening) price
   B-short: VI auction (opening) price, if >= the limit         B-cover: best asks at 09:16:00 walked
-Quantities are the paper bot's, so any difference between paper and shadow is execution only (price, timing,
-a session that was missed or failed).
+  C-short-SYM: the stock's auction price, if picked at 09:06:30 and >= its limit   C-cover-SYM: best asks at 09:20:00 walked
+Quantities for A and B are the paper bot's, so any difference between paper and shadow is execution only (price,
+timing, a session that was missed or failed). Plan C's live size is set before the auction from the limit price (the
+paper bot uses the auction price), and the live pick uses the 09:06:30 indicative prices, so C can also differ in
+WHICH stocks are traded - that is what the live test measures.
 """
 import csv, json
 from pathlib import Path
@@ -67,12 +70,14 @@ def _fills(events):
     return f
 
 
-def build(paper_open=None):
-    """paper_open = the paper bot's open overnight position (state/meta.json 'open'), shown before it is closed."""
+def build(paper_open=None, last_c=None):
+    """paper_open = the paper bot's open overnight position (state/meta.json 'open'), shown before it is closed.
+    last_c = the last morning the paper bot has booked for Plan C (state/meta.json 'last_c')."""
     ses = _sessions()
     paper = list(csv.DictReader(open(ROOT / "state" / "trades.csv", encoding="utf-8"))) if (ROOT / "state" / "trades.csv").exists() else []
     pA = {r["date"]: r for r in paper if r["plan"].startswith("A")}
     pB = {r["date"]: r for r in paper if r["plan"].startswith("B")}
+    pC = {(r["date"], r["instrument"].split()[0]): r for r in paper if r["plan"].startswith("C")}
     rows = []
     days = sorted({d for d, _ in ses})
     # ---- plan A: each afternoon buy, closed by the next morning session's auction sale
@@ -123,14 +128,58 @@ def build(paper_open=None):
         if p:
             r.update(paper_entry=float(p["entry"]), paper_exit=float(p["exit"]), paper_net=float(p["net_rs"]), paper_qty=int(p["qty"]))
         rows.append(r)
-    # ---- paper trades the shadow bot did not take (missed / failed session)
-    have = {(r["plan"], r["date"]) for r in rows}
-    for pl, book in (("A", pA), ("B", pB)):
-        for d, p in book.items():
-            if (pl, d) not in have and d >= min(days, default="9999"):
-                rows.append({"plan": pl, "date": d, "exit_date": p["exit_date"], "qty": int(p["qty"]), "instrument": p["instrument"],
-                             "paper_entry": float(p["entry"]), "paper_exit": float(p["exit"]), "paper_net": float(p["net_rs"]),
-                             "orders": "shadow bot missed this trade (no live session log)", "missed": True})
+    # ---- plan C: basket shorts picked at 09:06:30 from the indicative auction prices
+    why_c = {}                                   # (date, sym) -> why the live pick did not take a stock
+    for d in days:
+        ev = ses.get((d, "morning"))
+        if not ev:
+            continue
+        for e in ev:
+            if e["what"] == "c_pick" and isinstance(e.get("detail"), dict):
+                for x in e["detail"].get("stocks", []):
+                    if not x.get("picked"):
+                        why_c[(d, x["sym"])] = (
+                            f"live pick at {e['detail'].get('at')}: {x['why_not']}" if x.get("why_not") else
+                            f"live pick at {e['detail'].get('at')}: indicative ₹{x['iep']} ({x['gap_ind']:+.2f}%) was below the ₹{x['limit']:.2f} limit"
+                            if x.get("iep") else f"live pick at {e['detail'].get('at')}: no indicative price in the feed")
+            elif e["what"] == "c_missed":
+                why_c[(d, "*")] = str(e["detail"])
+        f, st = _fills(ev), _orders(ev)
+        for leg, s in f.items():
+            if leg.startswith("C-none-"):
+                why_c[(d, s["sym"])] = (f"picked live, but the auction price seen live (₹{s.get('open')}, {s.get('source')}) "
+                                        f"was below the ₹{s['limit']:.2f} limit, so the order was cancelled")
+            if not leg.startswith("C-short-"):
+                continue
+            sym = s["sym"]; c = f.get(f"C-cover-{sym}")
+            r = {"plan": "C", "date": d, "exit_date": d, "qty": s["qty"], "instrument": f"{sym} shares (MIS)",
+                 "shadow_entry": s["price"], "shadow_exit": c["price"] if c else None,
+                 "orders": f"{sym} short: {st.get(f'C-{sym}-short', '-')}; cover: {st.get(f'C-{sym}-cover', '-')}"}
+            if c and c["price"]:
+                q = s["qty"]
+                r["shadow_net"] = round((s["price"] - c["price"]) * q - vb.charges("cash", "sell", s["price"] * q) - vb.charges("cash", "buy", c["price"] * q))
+            p = pC.get((d, sym))
+            if p:
+                r.update(paper_entry=float(p["entry"]), paper_exit=float(p["exit"]), paper_net=float(p["net_rs"]), paper_qty=int(p["qty"]))
+            elif last_c and last_c >= d:
+                r["orders"] += "; the paper bot did not take this one (other stocks had priority at the final auction prices)"
+            else:
+                r["orders"] += "; the paper bot has not booked this morning yet"
+            rows.append(r)
+    # ---- paper trades the shadow bot did not take (missed / failed session, or not picked live)
+    have = {(r["plan"], r["date"], r["instrument"].split()[0] if r["plan"] == "C" else "") for r in rows}
+    first = min(days, default="9999")
+    for pl, book in (("A", pA), ("B", pB), ("C", pC)):
+        for k, p in book.items():
+            d, sym = (k if pl == "C" else (k, ""))
+            if (pl, d, sym) in have or d < first:
+                continue
+            why = "shadow bot missed this trade (no live session log)"
+            if pl == "C" and ses.get((d, "morning")):
+                why = why_c.get((d, sym)) or why_c.get((d, "*")) or "live bot: not picked (see the session log)"
+            rows.append({"plan": pl, "date": d, "exit_date": p["exit_date"], "qty": int(p["qty"]), "instrument": p["instrument"],
+                         "paper_entry": float(p["entry"]), "paper_exit": float(p["exit"]), "paper_net": float(p["net_rs"]),
+                         "orders": why, "missed": True})
     for r in rows:
         if r.get("shadow_net") is not None and r.get("paper_net") is not None:
             r["diff_rs"] = round(r["shadow_net"] - r["paper_net"])
@@ -139,13 +188,13 @@ def build(paper_open=None):
                 r[f"{k}_gap_paise"] = round((r[f"shadow_{k}"] - r[f"paper_{k}"]) * 100, 2)
     rows.sort(key=lambda r: (r["date"], r["plan"]))
     # ---- shadow accounts (Rs 5 lakh each, P&L booked on the exit day)
-    eq = {"A": S["capital_overnight"], "B": S["capital_gapshort"]}
+    eq = {"A": S["capital_overnight"], "B": S["capital_gapshort"], "C": vb.C_["capital"]}
     curve, done = [], [r for r in rows if r.get("shadow_net") is not None]
     for d in sorted({r["exit_date"] for r in done}):
         for r in done:
             if r["exit_date"] == d:
                 eq[r["plan"]] += r["shadow_net"]
-        curve.append({"date": d, "A": round(eq["A"]), "B": round(eq["B"])})
+        curve.append({"date": d, "A": round(eq["A"]), "B": round(eq["B"]), "C": round(eq["C"])})
 
     def summ(pl, start):
         t = [r for r in done if r["plan"] == pl]
@@ -154,10 +203,11 @@ def build(paper_open=None):
                 "trades": len(t), "wins": sum(r["shadow_net"] > 0 for r in t),
                 "vs_paper_rs": round(sum(diffs)) if diffs else None,
                 "missed": sum(1 for r in rows if r["plan"] == pl and r.get("missed"))}
-    A, B = summ("A", S["capital_overnight"]), summ("B", S["capital_gapshort"])
-    return {"plans": {"A": A, "B": B},
-            "combined": {"now": A["now"] + B["now"], "pnl": A["pnl"] + B["pnl"],
-                         "ret_pct": round((A["now"] + B["now"]) / (A["start"] + B["start"]) * 100 - 100, 2)},
+    A, B, C = summ("A", S["capital_overnight"]), summ("B", S["capital_gapshort"]), summ("C", vb.C_["capital"])
+    C["stocks_traded"] = sorted({r["instrument"].split()[0] for r in done if r["plan"] == "C"})
+    tot0, tot = A["start"] + B["start"] + C["start"], A["now"] + B["now"] + C["now"]
+    return {"plans": {"A": A, "B": B, "C": C}, "start_c": vb.C_["start_date"],
+            "combined": {"now": tot, "pnl": tot - tot0, "ret_pct": round(tot / tot0 * 100 - 100, 2)},
             "compare": rows[-100:], "curve": curve,
             "open": next(({"date": r["date"], "qty": r["qty"], "instrument": r["instrument"], "entry": r["shadow_entry"]}
                           for r in rows if r["plan"] == "A" and r.get("shadow_exit") is None and not r.get("missed") and not r.get("missed_leg")), None)}

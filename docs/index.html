@@ -37,16 +37,16 @@
   <p class="sub" id="sub">Loading…</p>
   <h3 class="rowtitle">Paper bot <span class="muted">— prices read afterwards from recorded ticks (the ideal result)</span></h3>
   <div class="cards" id="cards"></div>
-  <h3 class="rowtitle">Live shadow bot <span class="muted">— acts in real time, orders go to the Upstox sandbox (what a real bot would get). Plans A and B only; Plan C is paper-only for now.</span></h3>
+  <h3 class="rowtitle">Live shadow bot <span class="muted">— acts in real time, orders go to the Upstox sandbox (what a real bot would get). All three plans; Plan C picks its stocks at 09:06:30 from the pre-open indicative prices.</span></h3>
   <div class="cards" id="scards"></div>
   <div class="panel"><h3>Account value (₹) — solid = paper, dashed = live shadow</h3><div class="chartbox"><canvas id="eq"></canvas></div></div>
   <div class="panel"><h3>Paper vs live shadow, trade by trade</h3>
-    <p class="sub" style="margin:0 0 8px">Same quantities in both; any difference is execution: the price seen live at that second, timing, or a session that was missed. Gap = shadow price − paper price (paise per share; for buys, positive = shadow paid more).</p>
+    <p class="sub" style="margin:0 0 8px">A and B: same quantities in both, so any difference is execution: the price seen live at that second, timing, or a session that was missed. C: the live bot must choose its stocks at 09:06:30 from the indicative auction prices (the paper bot sees the final ones) and sizes on the limit price, so it can trade different stocks or slightly different quantities. Gap = shadow price − paper price (paise per share; for buys, positive = shadow paid more).</p>
     <div class="scroll"><table id="cmp"></table></div></div>
   <div class="panel"><h3>Open position</h3><div id="open"></div><p class="sub" style="margin:6px 0 0">Plans B and C never hold overnight: every short is bought back the same morning.</p></div>
   <div class="panel"><h3>Paper trades (newest first)</h3><div class="scroll"><table id="tr"></table></div></div>
   <div class="panel"><h3>Live shadow bot — what happened each session</h3>
-    <p class="sub" style="margin:0 0 8px">Morning session starts 08:40 (pre-open orders at 09:00:05, limit buy-back at 09:16:00, market at 09:17:00 if unfilled); afternoon session starts 15:05 (limit buy at 15:20:00, market at 15:25:00 if unfilled). Orders go to the Upstox sandbox (pretend, no money).</p>
+    <p class="sub" style="margin:0 0 8px">Morning session starts 08:40 (A and B pre-open orders at 09:00:05; Plan C pick and limit sells at 09:06:30, before NSE's random order-entry close between 09:07 and 09:08; B limit buy-back at 09:16:00, market at 09:17:00 if unfilled; C market buy-back at 09:20:00); afternoon session starts 15:05 (limit buy at 15:20:00, market at 15:25:00 if unfilled). Orders go to the Upstox sandbox (pretend, no money).</p>
     <div id="sh"></div></div>
   <div class="panel"><h3>What the research expects</h3><div id="ref"></div></div>
   <div class="panel"><h3>Rules</h3>
@@ -77,14 +77,16 @@ fetch("data/dashboard.json?" + Date.now()).then(r => r.json()).then(d => {
     card(C ? "All three plans" : "Both plans", d.combined, "");
   document.getElementById("cstocks").textContent = ((d.plan_c || {}).stocks || []).map((s, i) => `${i + 1}. ${s}`).join("  ");
   const sh = d.shadow || {};
-  const abNow = d.plans.A.now + d.plans.B.now;
+  const shC = !!(sh.plans && sh.plans.C);
+  const paperNow = shC ? d.combined.now : d.plans.A.now + d.plans.B.now;
   if (sh.plans) {
     const se = x => `<span>Trades</span><b>${x.trades}</b><span>Wins</span><b>${x.wins}</b>
       <span>vs paper</span><b class="${cls(x.vs_paper_rs ?? 0)}">${x.vs_paper_rs == null ? "–" : sgn(x.vs_paper_rs)}</b>
       <span>Missed trades</span><b>${x.missed}</b>`;
     document.getElementById("scards").innerHTML = card("A · Overnight (live)", sh.plans.A, se(sh.plans.A)) +
       card("B · Gap-up short (live)", sh.plans.B, se(sh.plans.B)) +
-      card("A + B (live)", sh.combined, `<span>Difference vs paper A + B</span><b class="${cls(sh.combined.now - abNow)}">${sgn(sh.combined.now - abNow)}</b>`);
+      (shC ? card("C · Gap-up basket (live)", sh.plans.C, se(sh.plans.C) + `<span style="grid-column:1/-1;margin-top:4px">Stocks traded: <b style="text-align:left">${(sh.plans.C.stocks_traded || []).join(", ") || "none yet"}</b></span>`) : "") +
+      card(shC ? "All three (live)" : "A + B (live)", sh.combined, `<span>Difference vs paper ${shC ? "all three" : "A + B"}</span><b class="${cls(sh.combined.now - paperNow)}">${sgn(sh.combined.now - paperNow)}</b>`);
   } else {
     document.getElementById("scards").innerHTML = `<div class="card">Shadow results appear after the first live session is booked${sh.error ? " (" + sh.error + ")" : ""}.</div>`;
   }
@@ -92,7 +94,7 @@ fetch("data/dashboard.json?" + Date.now()).then(r => r.json()).then(d => {
   const lab = [d.start_date + " start"].concat(days.map(x => x.date));
   const s0 = d.plans.A.start, s1 = d.plans.B.start, s2 = C ? C.start : 0;
   const curve = (sh.curve || []);
-  const live = k => { let v = k === "A" ? s0 : s1; const m = Object.fromEntries(curve.map(c => [c.date, c[k]]));
+  const live = k => { let v = k === "A" ? s0 : k === "B" ? s1 : s2; const m = Object.fromEntries(curve.map(c => [c.date, c[k]]));
     return [v].concat(days.map(x => (m[x.date] != null ? (v = m[x.date]) : v))); };
   new Chart(document.getElementById("eq"), { type: "line",
     data: { labels: lab, datasets: [
@@ -101,6 +103,7 @@ fetch("data/dashboard.json?" + Date.now()).then(r => r.json()).then(d => {
       { label: "B gap-up short", data: [s1].concat(days.map(x => +x.equity_B)), borderColor: css("--b"), pointRadius: 0, tension: .1 },
       { label: "B live shadow", data: live("B"), borderColor: css("--b"), borderDash: [6, 4], pointRadius: 0, tension: .1 },
       ...(C ? [{ label: "C gap-up basket", data: [s2].concat(days.map(x => +(x.equity_C ?? s2))), borderColor: css("--c"), pointRadius: 0, tension: .1 }] : []),
+      ...(C && shC ? [{ label: "C live shadow", data: live("C"), borderColor: css("--c"), borderDash: [6, 4], pointRadius: 0, tension: .1 }] : []),
       { label: C ? "All three (paper)" : "Both (paper)", data: [s0 + s1 + s2].concat(days.map(x => +x.total)), borderColor: css("--t"), pointRadius: 0, tension: .1, yAxisID: "y2" } ] },
     options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
       plugins: { legend: { labels: { color: css("--ink") } }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${inr(c.parsed.y)}` } } },
@@ -111,7 +114,7 @@ fetch("data/dashboard.json?" + Date.now()).then(r => r.json()).then(d => {
   const gp = v => v == null ? "–" : (v > 0 ? "+" : "") + v;
   const cmp = (sh.compare || []).slice().reverse();
   document.getElementById("cmp").innerHTML = `<tr><th class="l">Plan</th><th class="l">Date</th><th>Qty</th><th>Paper in → out</th><th>Live in → out</th><th>Gap in / out (paise)</th><th>Paper net</th><th>Live net</th><th>Difference</th><th class="l">Live orders (sandbox)</th></tr>` +
-    (cmp.length ? cmp.map(r => `<tr><td><span class="tag ${r.plan === "A" ? "ta" : "tb"}">${r.plan}</span></td><td class="l">${r.date}${r.exit_date && r.exit_date !== r.date ? " → " + r.exit_date : ""}</td>
+    (cmp.length ? cmp.map(r => `<tr><td><span class="tag t${r.plan.toLowerCase()}">${r.plan}</span>${r.plan === "C" ? " " + esc((r.instrument || "").split(" ")[0]) : ""}</td><td class="l">${r.date}${r.exit_date && r.exit_date !== r.date ? " → " + r.exit_date : ""}</td>
       <td>${(+r.qty).toLocaleString("en-IN")}</td><td>${f4(r.paper_entry)} → ${f4(r.paper_exit)}</td><td>${f4(r.shadow_entry)} → ${f4(r.shadow_exit)}</td>
       <td>${gp(r.entry_gap_paise)} / ${gp(r.exit_gap_paise)}</td><td class="${cls(r.paper_net ?? 0)}">${r.paper_net == null ? "open" : sgn(r.paper_net)}</td>
       <td class="${cls(r.shadow_net ?? 0)}">${r.shadow_net == null ? (r.missed ? "missed" : "open") : sgn(r.shadow_net)}</td>

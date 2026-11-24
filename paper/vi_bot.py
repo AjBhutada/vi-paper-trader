@@ -554,7 +554,8 @@ class Bot:
             if not prev:
                 log(f"C: {s} has no candles on {pd_} - skipped"); continue
             pc, o = prev[max(prev)][3], cs[ent][0]
-            limit = math.ceil(round(pc * (1 + C_["gap_threshold_pct"] / 100) / tick_size(pc), 6)) * tick_size(pc)
+            raw = pc * (1 + C_["gap_threshold_pct"] / 100)          # the limit must sit on the price step of its own band
+            limit = math.ceil(round(raw / tick_size(raw), 6)) * tick_size(raw)
             gap = (o / pc - 1) * 100
             seen.append(f"{s} {gap:+.1f}%")
             if o >= limit - 1e-9 and gap <= 20:          # > 20% = a corporate action, not a real gap
@@ -687,7 +688,7 @@ def report(st, now):
     try:                                         # the live shadow bot, lined up with the paper trades
         sys.path.insert(0, str(ROOT / "paper"))
         import shadow_ledger
-        dash["shadow"] = shadow_ledger.build(m.get("open"))
+        dash["shadow"] = shadow_ledger.build(m.get("open"), m.get("last_c"))
     except Exception as e:
         log("shadow ledger not built:", e)
         dash["shadow"] = {"error": str(e)[:200]}

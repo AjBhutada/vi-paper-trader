@@ -1,11 +1,18 @@
-"""SHADOW live bot for the two Vodafone Idea plans. It does in real time exactly what a real trading bot would do,
-but sends its orders to the Upstox SANDBOX (pretend orders, no money). Without a sandbox token it only logs them.
+"""SHADOW live bot for the three plans (A and B on Vodafone Idea, C on the 13-stock basket). It does in real time
+exactly what a real trading bot would do, but sends its orders to the Upstox SANDBOX (pretend orders, no money).
+Without a sandbox token it only logs them.
 
-  morning  (start ~08:50 India): connect to the live feed; 09:00:05 send the pre-open orders
+  morning  (start ~08:40 India): connect to the live feed; 09:00:05 send the pre-open orders
              A: sell last night's futures (market order, NRML)      - only if the paper bot holds a position
              B: limit SELL of VI shares at yesterday's last price x 1.01 (intraday)
-           09:15 watch the auction price; if B's limit was reached, buy back at 09:16:00, else cancel the limit order.
-  afternoon (start ~15:15 India): 15:25:00 buy the futures lots (market order, NRML).
+           09:06:30 Plan C pick: read each basket stock's INDICATIVE auction price (Upstox feed field 'iep', sent only
+             during the pre-open); stocks already >= yesterday's last x 1.02 are taken in priority order, up to 3 and
+             5 x the Plan C account, and get a limit SELL at that price. (NSE closes pre-open order entry at a random
+             second between 09:07 and 09:08, so the pick must be done before 09:07.)
+           09:15 watch the auction prices; B: if its limit was reached, buy back from 09:16:00, else cancel.
+             C: each picked stock whose limit was reached is shorted at the auction price; others are cancelled.
+           09:20:00 C: buy back every filled C short (market order at the best asks).
+  afternoon (start ~15:05 India): limit buy at 15:20:00, market buy at 15:25:00 if unfilled (futures, NRML).
 
 Every step is logged with the live prices seen at that instant and the order replies -> state/shadow/.
 Sizes come from the paper accounts (state/meta.json), so shadow and paper describe the same trades.
@@ -23,12 +30,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import vi_bot as vb                                         # shared settings, candles, contracts, holidays, sizing rules
 
 S, IST, ROOT = vb.S, vb.IST, vb.ROOT
+C_ = vb.C_
 EQ = S["equity_key"]
 OUT = ROOT / "state" / "shadow"
 
 
 def walk(levels, qty):
-    """Average price for buying `qty` through the visible (price, qty) levels; beyond them, 1 paisa worse."""
+    """Average price for buying `qty` through the visible (price, qty) levels; beyond them, one price step worse."""
     left, cost = qty, 0.0
     for p, q in levels or []:
         if not p:
@@ -38,7 +46,74 @@ def walk(levels, qty):
             return round(cost / qty, 4)
     if not levels:
         return None
-    return round((cost + left * (levels[-1][0] + 0.01)) / qty, 4)
+    return round((cost + left * (levels[-1][0] + vb.tick_size(levels[-1][0]))) / qty, 4)
+
+
+def c_setup(bot, day, log):
+    """Before 09:00: for each Plan C stock (priority order) yesterday's last price, the 2% limit (on the price step)
+    and the usual opening-minute traded value (the size cap). [] before Plan C's start date."""
+    if str(day) < C_["start_date"]:
+        return []
+    pd_ = bot.prev_tday(day)
+    rows = []
+    for rank, s in enumerate(C_["stocks"], 1):
+        key = bot.eqk.get(s)
+        if not key:
+            log("c_skip", f"{s}: not in Upstox's instrument list"); continue
+        prev = vb.candles(key, pd_) if pd_ else {}
+        if not prev:
+            log("c_skip", f"{s}: no candles on {pd_}"); continue
+        pc = prev[max(prev)][3]
+        raw = pc * (1 + C_["gap_threshold_pct"] / 100)
+        step = vb.tick_size(raw)
+        limit = round(math.ceil(round(raw / step, 6)) * step, 2)
+        try:
+            fmv = vb.opening_value_median(key, day)
+        except Exception as e:
+            fmv = None; log("c_skip", f"{s}: opening value not available ({str(e)[:80]})")
+        rows.append(dict(rank=rank, sym=s, key=key, prev=pc, limit=limit, open_value=round(fmv) if fmv else None))
+    return rows
+
+
+def c_pick(rows, feed, eq_c):
+    """Plan C pick from the INDICATIVE auction prices: the paper rules, with the indicative price standing in for the
+    auction price that is not known yet. Sizes are worked out on the limit price (the most the order can fill below)."""
+    now = time.time()
+    for r in rows:
+        iep, ieq, rx = feed.iep_of(r["key"])
+        r.update(iep=iep, ieq=ieq, iep_age_s=round(now - rx) if rx else None,
+                 gap_ind=round((iep / r["prev"] - 1) * 100, 2) if iep else None, signal=False, picked=False)
+        if iep and iep >= r["limit"] - 1e-9 and r["gap_ind"] <= 20:      # > 20% = a corporate action
+            r["signal"] = True
+    budget, n = C_["leverage"] * eq_c, 0
+    for r in rows:                                                       # rows are in priority order
+        if not r["signal"]:
+            continue
+        if n >= C_["max_positions"] or budget < C_["min_position_rs"]:
+            r["why_not"] = "no room left"; continue
+        if not r["open_value"]:
+            r["why_not"] = "too little history"; continue
+        liq = C_["liquidity_frac"] * r["open_value"]
+        notional = min(liq, C_["cap_rs"], budget)
+        qty = int(notional // r["limit"])
+        if qty * r["limit"] < C_["min_position_rs"]:
+            r["why_not"] = "position too small"; continue
+        r.update(picked=True, qty=qty, size_why=("5% of its usual opening-minute value" if liq <= min(C_["cap_rs"], budget) else
+                                                 "the Rs 50 lakh cap" if C_["cap_rs"] <= budget else "what was left of 5x the account"))
+        budget -= qty * r["limit"]; n += 1
+    return [r for r in rows if r["picked"]]
+
+
+def c_book(r, src, log, orders):
+    """A picked Plan C stock at the auction: filled at the auction price if that reached the limit, else cancel."""
+    o, sym = r["auction"], r["sym"]
+    if o >= r["limit"] - 1e-9:
+        r["filled"] = True
+        log("fill", {"leg": f"C-short-{sym}", "sym": sym, "price": o, "qty": r["qty"], "limit": r["limit"], "prev_last": r["prev"],
+                     "iep_at_pick": r["iep"], "rank": r["rank"], "source": src})
+    else:
+        log("fill", {"leg": f"C-none-{sym}", "sym": sym, "open": o, "limit": r["limit"], "iep_at_pick": r["iep"], "source": src})
+        orders.cancel(f"C-{sym}-short", r.get("oid"))
 
 
 class Clock:
@@ -52,6 +127,11 @@ class Clock:
 
     def now(self):
         return datetime.now(IST) + timedelta(seconds=self.shift)
+
+    def real_ts(self, hms):
+        """Real Unix time of HH:MM:SS today on this clock (feed receive times are real time)."""
+        target = datetime.combine(self.now().date(), datetime.strptime(hms, "%H:%M:%S").time(), IST)
+        return time.time() - (self.now() - target).total_seconds()
 
     def wait_until(self, hms):
         target = datetime.combine(self.now().date(), datetime.strptime(hms, "%H:%M:%S").time(), IST)
@@ -68,6 +148,8 @@ class Feed:
         import upstox_client
         self.snap, self.log, self.n = {}, log, 0
         self.low = {}                                       # lowest traded price per key since reset_low()
+        self.iep = {}                                       # key -> (indicative auction price, its quantity, receive time)
+        self.preopen = None                                 # NSE_EQ pre-open status from 'market_info' messages
         self.lock = threading.Lock()
         cfg = upstox_client.Configuration()
         cfg.access_token = os.environ["UPSTOX_ACCESS_TOKEN"]
@@ -88,14 +170,24 @@ class Feed:
             pass
 
     def on_msg(self, m):
-        feeds = (m or {}).get("feeds") or {}
+        m = m or {}
+        if m.get("type") == "market_info":
+            st = ((m.get("marketInfo") or {}).get("preOpenSessionStatus") or {}).get("NSE_EQ")
+            if st and st.get("status") != self.preopen:
+                self.preopen = st.get("status")
+                self.log("preopen_status", st)
+        feeds = m.get("feeds") or {}
         now = time.time()
         with self.lock:
             for k, v in feeds.items():
                 mff = (v.get("fullFeed") or {}).get("marketFF") or {}
+                lt = mff.get("ltpc") or {}
                 q = [x for x in (mff.get("marketLevel") or {}).get("bidAskQuote", []) if x]
                 ohlc = [o for o in (mff.get("marketOHLC") or {}).get("ohlc", []) if o.get("interval") == "1d"]
-                self.snap[k] = {"rx": now, "ltp": (mff.get("ltpc") or {}).get("ltp"), "cp": (mff.get("ltpc") or {}).get("cp"),
+                iep = mff.get("iep") or lt.get("iep")              # only sent during the pre-open / closing auctions
+                if iep:
+                    self.iep[k] = (iep, mff.get("ieq"), now)
+                self.snap[k] = {"rx": now, "ltp": lt.get("ltp"), "cp": lt.get("cp"), "iep": iep, "ieq": mff.get("ieq"),
                                 "bid": [(x.get("bidP"), int(x.get("bidQ", 0) or 0)) for x in q if x.get("bidP")],
                                 "ask": [(x.get("askP"), int(x.get("askQ", 0) or 0)) for x in q if x.get("askP")],
                                 "open": ohlc[0].get("open") if ohlc else None, "vtt": mff.get("vtt")}
@@ -115,6 +207,11 @@ class Feed:
     def get(self, k):
         with self.lock:
             return dict(self.snap.get(k) or {})
+
+    def iep_of(self, k):
+        """Latest indicative auction price seen this session: (price, quantity, receive time) or (None, None, None)."""
+        with self.lock:
+            return self.iep.get(k) or (None, None, None)
 
 
 def limit_then_market(clock, feed, orders, log, key, qty, product, label, fallback_hms):
@@ -250,15 +347,35 @@ def main():
         if clock.now().strftime("%H:%M:%S") > "09:07:30":
             log("missed", "started after the pre-open order window; nothing sent today")
             return finish(day, a.part, events, st)
-        feed = Feed(keys, log); feed.start()
+        PICK = C_.get("live_pick_at", "09:06:30")
+        crows = c_setup(bot, day, log)
+        if crows:
+            log("c_plan", {"equity_C": round(m["equity"]["C"]), "pick_at": PICK,
+                           "stocks": [{x: r[x] for x in ("sym", "prev", "limit", "open_value")} for r in crows]})
+        ckeys = {r["key"] for r in crows}
+        cname = {r["key"]: r["sym"] for r in crows}
+        feed = Feed(keys | ckeys, log); feed.start()
         clock.wait_until("09:00:05")
         snaps = {k: feed.get(k) for k in keys}
         log("preopen_snapshot", snaps)
         a_id = orders.place("A-sell", pos["key"], "SELL", pos["qty"], "MARKET", "D") if pos else None
         b_id = orders.place("B-limit-short", EQ, "SELL", qty_b, "LIMIT", "I", limit)
-        for hms in ("09:03:00", "09:05:00", "09:07:00", "09:07:50", "09:08:30", "09:12:00"):
+        brief = lambda k: {x: feed.get(k).get(x) for x in ("ltp", "iep", "ieq", "open")}
+        chosen = []
+        for hms in sorted({"09:03:00", "09:05:00", "09:07:00", "09:07:50", "09:08:30", "09:12:00"} | ({PICK} if crows else set())):
             clock.wait_until(hms)
-            log(f"preopen_{hms}", {k: {x: feed.get(k).get(x) for x in ("ltp", "open", "ask", "bid")} for k in keys})
+            log(f"preopen_{hms}", {**{k: {x: feed.get(k).get(x) for x in ("ltp", "iep", "open", "ask", "bid")} for k in keys},
+                                   **{cname[k]: brief(k) for k in ckeys - keys}})
+            if crows and hms == PICK:
+                if (clock.now() - datetime.combine(day, datetime.strptime(PICK, "%H:%M:%S").time(), IST)).total_seconds() > 20:
+                    log("c_missed", f"started too late for the Plan C pick at {PICK}; no Plan C orders today")
+                    crows = []; continue
+                chosen = c_pick(crows, feed, m["equity"]["C"])
+                log("c_pick", {"at": clock.now().strftime("%H:%M:%S"), "equity_C": round(m["equity"]["C"]),
+                               "stocks": [{x: r.get(x) for x in ("sym", "key", "rank", "prev", "limit", "iep", "ieq", "iep_age_s", "gap_ind",
+                                                                 "signal", "picked", "why_not", "qty", "size_why")} for r in crows]})
+                for r in chosen:
+                    r["oid"] = orders.place(f"C-{r['sym']}-short", r["key"], "SELL", r["qty"], "LIMIT", "I", r["limit"])
         clock.wait_until("09:15:01")
         o = None
         for _ in range(40):                       # up to ~20 s for the first post-auction snapshot
@@ -272,14 +389,53 @@ def main():
                         "A_future_open": fs.get("open")})
         if pos:
             log("fill", {"leg": "A-sell", "price": fs.get("open"), "qty": pos["qty"], "symbol": pos["symbol"], "bought_on": pos["date"]})
-        if o and o >= limit:
+        b_filled = bool(o and o >= limit)
+        if b_filled:
             log("fill", {"leg": "B-short", "price": o, "qty": qty_b, "limit": limit, "prev_last": last})
-            L = S["limit_orders"]
-            clock.wait_until(L["B_place"] + ":00")
-            limit_then_market(clock, feed, orders, log, EQ, qty_b, "I", "B-cover", L["B_fallback"] + ":00")
         else:
             log("fill", {"leg": "B-none", "open": o, "limit": limit})
             orders.cancel("B-limit-short", b_id)
+        # ---- Plan C at the auction: each picked stock is shorted at its auction price if that reached the limit
+        t915 = clock.real_ts("09:15:00")
+        live_open = lambda k: feed.get(k).get("open") if (feed.get(k).get("rx") or 0) >= t915 else None
+        while chosen and clock.now().strftime("%H:%M:%S") < "09:15:45" and not all(live_open(r["key"]) for r in chosen):
+            time.sleep(0.5)
+        late = []
+        for r in chosen:
+            r["auction"] = live_open(r["key"])
+            if r["auction"]:
+                c_book(r, "live feed", log, orders)
+            else:
+                late.append(r)                     # auction price not seen live yet: read it from the 09:15 candle below
+        if b_filled:
+            L = S["limit_orders"]
+            clock.wait_until(L["B_place"] + ":00")
+            limit_then_market(clock, feed, orders, log, EQ, qty_b, "I", "B-cover", L["B_fallback"] + ":00")
+        if late:
+            clock.wait_until("09:16:05")           # the 09:15 one-minute candle is complete by then
+        for r in late:
+            cs = vb.candles(r["key"], day)
+            r["auction"] = cs["09:15"][0] if "09:15" in cs else None
+            if r["auction"]:
+                c_book(r, "09:15 one-minute candle (not seen live by 09:15:45)", log, orders)
+            else:
+                log("error", f"Plan C: {r['sym']} auction price not found; its order is left as it is")
+        # ---- Plan C buy-back at 09:20:00: market buy of every filled short at the best asks
+        held = [r for r in chosen if r.get("filled")]
+        if crows:
+            clock.wait_until(C_["cover_minute"] + ":00")
+            quotes = {r["key"]: feed.get(r["key"]) for r in held}
+            for r in held:
+                s = quotes[r["key"]]
+                orders.place(f"C-{r['sym']}-cover", r["key"], "BUY", r["qty"], "MARKET", "I")
+                px, how = walk(s.get("ask"), r["qty"]), f"market buy at the best asks at {C_['cover_minute']}:00"
+                if px is None and s.get("ltp"):
+                    half = max(vb.tick_size(s["ltp"]) / 2, s["ltp"] * 0.0002)
+                    px, how = round(s["ltp"] + half, 4), f"no asks in the feed; last price {s['ltp']} + {half:.4f}"
+                log("fill", {"leg": f"C-cover-{r['sym']}", "sym": r["sym"], "price": px, "qty": r["qty"], "how": how,
+                             "best_ask": (s.get("ask") or [None])[:3]})
+            log("c_opens", {r["sym"]: {"open": feed.get(r["key"]).get("open"), "prev": r["prev"], "limit": r["limit"],
+                                       "picked": r["picked"]} for r in crows})
         time.sleep(2)
         feed.stop()
     else:
@@ -338,6 +494,12 @@ def summarize(js):
         d = det(e)
         if d.get("contract"):
             names["fut"] = d["contract"]
+        if isinstance(d.get("A_sell"), dict) and d["A_sell"].get("symbol"):
+            names["fut"] = d["A_sell"]["symbol"]
+    for e in get("c_pick"):
+        for x in det(e).get("stocks", []):
+            if x.get("key") and x["key"] not in names:
+                names[x["key"]] = f"{x['sym']} shares"
     name = lambda key: names.get(key) or ("VI shares" if key == EQ else names.get("fut", key))
     lines, result = [], "OK"
 
@@ -402,6 +564,50 @@ def summarize(js):
             lines.append(f"Bought back at ₹{f.get('price')}" + (f" — {f['how']}." if f.get("how") else " (best price to buy at 09:16:00)."))
         if any(e["what"] in ("cancel_sent", "cancel_dry") and det(e).get("label") == "B-limit-short" for e in ev):
             lines.append("Unfilled limit short cancelled" + (" (logged only)." if get("cancel_dry") else " in the sandbox."))
+        # ---- Plan C
+        for e in get("c_missed"):
+            lines.append("Plan C: " + str(e["detail"])); result = "Missed"
+        cp = det(get("c_pick")[0]) if get("c_pick") else {}
+        if cp:
+            stocks = cp.get("stocks", [])
+            up = [x for x in stocks if x.get("signal")]
+            lines.append(f"Plan C pre-open check at {cp.get('at')} (Plan C account ₹{_inr(cp.get('equity_C', 0))}): "
+                         + ("; ".join(f"{x['sym']} indicative ₹{x['iep']} ({x['gap_ind']:+.2f}%, limit ₹{x['limit']:.2f})" for x in up)
+                            + " — at least 2% up." if up else "no stock was 2% up at that moment."))
+            near = sorted((x for x in stocks if x.get("gap_ind") is not None and not x.get("signal")), key=lambda x: -x["gap_ind"])[:3]
+            if near:
+                lines.append("Closest below 2%: " + ", ".join(f"{x['sym']} {x['gap_ind']:+.2f}%" for x in near) + ".")
+            noiep = [x["sym"] for x in stocks if x.get("iep") is None]
+            if noiep:
+                lines.append("No indicative price from the feed for: " + ", ".join(noiep) + ".")
+            for x in up:
+                if x.get("picked"):
+                    lines.append(f"Plan C picked {x['sym']} (priority {x['rank']}): limit short {_inr(x['qty'])} shares at "
+                                 f"₹{x['limit']:.2f}; size: {x.get('size_why')}.")
+                    t = order_text(f"C-{x['sym']}-short", f"Plan C pre-open limit short {x['sym']}")
+                    if t:
+                        lines.append(t)
+                else:
+                    lines.append(f"Plan C did not take {x['sym']}: {x.get('why_not')}.")
+        for leg, f in fills.items():
+            if leg.startswith("C-short-"):
+                src = "" if f.get("source") == "live feed" else f" (price from the {f.get('source')})"
+                lines.append(f"09:15 auction: {f['sym']} opened at ₹{f['price']} — the ₹{f['limit']:.2f} limit was REACHED, "
+                             f"so the short filled at the auction price{src}.")
+            elif leg.startswith("C-none-"):
+                lines.append(f"09:15 auction: {f['sym']} opened at ₹{f.get('open')} — below the ₹{f['limit']:.2f} limit, so no short; "
+                             "order cancelled.")
+        for leg, f in fills.items():
+            if leg.startswith("C-cover-"):
+                t = order_text(f"C-{f['sym']}-cover", f"Plan C buy-back {f['sym']}")
+                if t:
+                    lines.append(t)
+                lines.append(f"Bought back {f['sym']} at ₹{f.get('price')} — {f.get('how')}.")
+        co = det(get("c_opens")[0]) if get("c_opens") else {}
+        late = [f"{s} (opened ₹{v['open']}, limit ₹{v['limit']:.2f})" for s, v in co.items()
+                if v.get("open") and v["open"] >= v["limit"] - 1e-9 and not v.get("picked")]
+        if late:
+            lines.append("Opened 2%+ up at the auction but was not picked at the pre-open check: " + ", ".join(late) + ".")
     elif part == "afternoon":
         p = det(get("plan")[0]) if get("plan") else {}
         if p:

@@ -1,7 +1,8 @@
 name: vi-shadow
-# SHADOW live bot (no money): does in real time what a real trading bot would do and sends its orders to the
-# Upstox SANDBOX (pretend orders). Started by cron-job.org at 08:40 (morning) and 15:05 (afternoon) India time,
-# 20 minutes early: it connects, then waits for the exact second (09:00:05, 09:16:00, 15:25:00).
+# SHADOW live bot (no money): does in real time what a real trading bot would do for Plans A, B and C and sends its
+# orders to the Upstox SANDBOX (pretend orders). Started by cron-job.org at 08:40 (morning) and 15:05 (afternoon) India
+# time, early: it connects, then waits for the exact second (09:00:05 A+B pre-open orders, 09:06:30 Plan C pick,
+# 09:16:00 B buy-back, 09:20:00 C buy-back; 15:20:00 / 15:25:00 A buy).
 on:
   schedule:                    # backups only (GitHub timers often run late); a second start the same day does nothing
     - cron: "17 3 * * 1-5"     # 08:47 India
@@ -21,7 +22,7 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60     # the morning session runs 08:40 -> 09:21
     steps:
       - uses: actions/checkout@v4
         with:
