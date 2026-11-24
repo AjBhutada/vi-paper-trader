@@ -1,0 +1,11 @@
+{
+ "day": "2026-11-24",
+ "part": "afternoon",
+ "events": [
+  {
+   "t": "15:05:25.318",
+   "what": "skip",
+   "detail": "2026-11-24 is not a trading day"
+  }
+ ]
+}
