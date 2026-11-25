@@ -95,11 +95,14 @@ def c_pick(rows, feed, eq_c):
             r["why_not"] = "too little history"; continue
         liq = C_["liquidity_frac"] * r["open_value"]
         per = C_.get("max_position_x", C_["leverage"]) * eq_c                     # 2:2:1 rule: each stock <= 2x the account
-        notional = min(liq, C_["cap_rs"], budget, per)
+        pre = vb.preopen_cap(r["iep"], r["ieq"]) or 0.0      # <= 10% of the live pre-open auction (none matched yet = 0)
+        r["preopen_value"] = round(pre / C_.get("preopen_frac", 1.0)) if pre else 0
+        notional = min(liq, C_["cap_rs"], budget, per, pre)
         qty = int(notional // r["limit"])
         if qty * r["limit"] < C_["min_position_rs"]:
-            r["why_not"] = "position too small"; continue
-        r.update(picked=True, qty=qty, size_why=vb.c_size_why(liq, per, budget))
+            r["why_not"] = ("pre-open auction too small (10% of it is under the minimum position)" if pre <= min(liq, C_["cap_rs"], budget, per)
+                            else "position too small"); continue
+        r.update(picked=True, qty=qty, size_why=vb.c_size_why(liq, per, budget, pre))
         budget -= qty * r["limit"]; n += 1
     return [r for r in rows if r["picked"]]
 
@@ -379,7 +382,7 @@ def main():
                 chosen = c_pick(crows, feed, m["equity"]["C"])
                 log("c_pick", {"at": clock.now().strftime("%H:%M:%S"), "equity_C": round(m["equity"]["C"]),
                                "stocks": [{x: r.get(x) for x in ("sym", "key", "rank", "prev", "limit", "iep", "ieq", "iep_age_s", "gap_ind",
-                                                                 "signal", "picked", "why_not", "qty", "size_why")} for r in crows]})
+                                                                 "preopen_value", "signal", "picked", "why_not", "qty", "size_why")} for r in crows]})
                 for r in chosen:
                     r["oid"] = orders.place(f"C-{r['sym']}-short", r["key"], "SELL", r["qty"], "LIMIT", "I", r["limit"])
         clock.wait_until("09:15:01")
@@ -489,6 +492,10 @@ def _inr(v, dec=0):
     return ("-" if neg else "") + s + ("." + frac if frac else "")
 
 
+def _lakh(v):
+    return f"₹{v / 1e7:,.2f} crore" if v >= 1e7 else f"₹{v / 1e5:,.1f} lakh"
+
+
 def summarize(js):
     """One plain-language summary of a session: {day, session, result, lines[], raw[]}."""
     ev = js["events"]
@@ -589,7 +596,8 @@ def summarize(js):
             for x in up:
                 if x.get("picked"):
                     lines.append(f"Plan C picked {x['sym']} (priority {x['rank']}): limit short {_inr(x['qty'])} shares at "
-                                 f"₹{x['limit']:.2f}; size: {x.get('size_why')}.")
+                                 f"₹{x['limit']:.2f}; size: {x.get('size_why')}" +
+                                 (f" (pre-open auction so far {_lakh(x['preopen_value'])})." if x.get("preopen_value") else "."))
                     t = order_text(f"C-{x['sym']}-short", f"Plan C pre-open limit short {x['sym']}")
                     if t:
                         lines.append(t)

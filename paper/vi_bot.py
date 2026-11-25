@@ -186,7 +186,7 @@ def tick_assets(day):
 def load_tick_asset(name, url, keys):
     """Download + decrypt one recorder file and keep only the lines of `keys` (VI shares + futures, Plan C shares).
     Cached per key set, so adding stocks never reuses a cache that lacks them."""
-    tag = hashlib.md5(",".join(sorted(keys)).encode()).hexdigest()[:8]
+    tag = hashlib.md5((",".join(sorted(keys)) + "|v2").encode()).hexdigest()[:8]      # v2: also keeps the pre-open iep/ieq
     f = CACHE / "ticks" / (name.replace(".tgz.enc", "") + f"_{tag}.jsonl")
     if f.exists():
         return [json.loads(l) for l in f.open(encoding="utf-8")]
@@ -221,7 +221,9 @@ def load_tick_asset(name, url, keys):
                     q = [x for x in (mff.get("marketLevel") or {}).get("bidAskQuote", []) if x]
                     asks = [(x["askP"], int(x.get("askQ", 0) or 0)) for x in q if x.get("askP")]
                     bids = [(x["bidP"], int(x.get("bidQ", 0) or 0)) for x in q if x.get("bidP")]
-                    out.append({"rx": j["rx"], "key": k, "asks": asks, "bids": bids, "ltp": (mff.get("ltpc") or {}).get("ltp")})
+                    lt = mff.get("ltpc") or {}
+                    out.append({"rx": j["rx"], "key": k, "asks": asks, "bids": bids, "ltp": lt.get("ltp"),
+                                "iep": mff.get("iep") or lt.get("iep"), "ieq": mff.get("ieq")})
     f.parent.mkdir(parents=True, exist_ok=True)
     with f.open("w", encoding="utf-8") as h:
         for r in out:
@@ -261,10 +263,22 @@ def opening_value_median(key, d, n=20):
     return med
 
 
-def c_size_why(liq, per, budget):
+def preopen_cap(iep, ieq):
+    """Most a Plan C short may be: preopen_frac (10%) of the stock's pre-open auction value at the pick
+    (indicative price x indicative matched quantity). None = no pre-open record, so no cap can be set."""
+    try:
+        v = float(iep) * float(ieq)
+    except (TypeError, ValueError):
+        return None
+    return C_.get("preopen_frac", 1.0) * v
+
+
+def c_size_why(liq, per, budget, pre=None):
     """Which limit set a Plan C position's size (plain words for the trade note)."""
-    low = min(liq, C_["cap_rs"], budget, per)
-    return ("5% of its usual opening-minute value" if liq <= low else
+    low = min(liq, C_["cap_rs"], budget, per, pre if pre is not None else float("inf"))
+    return (f"{C_.get('preopen_frac', 1.0):.0%} of its pre-open auction at {C_.get('live_pick_at', '09:06:30')}"
+            if pre is not None and pre <= low else
+            "5% of its usual opening-minute value" if liq <= low else
             f"{C_.get('max_position_x', C_['leverage']):g}x the account (2:2:1 rule)" if per <= low else
             "the Rs 50 lakh cap" if C_["cap_rs"] <= low else "what was left of 5x the account")
 
@@ -320,6 +334,19 @@ class Bot:
         snaps.sort(key=lambda s: s["rx"])
         self._ticks[d] = snaps
         return snaps
+
+    def preopen_at(self, d, key, hms):
+        """(indicative price, indicative quantity) from the last recorded snapshot at or before HH:MM:SS in the pre-open
+        (from 09:00), or None if the recorder has no pre-open for that day."""
+        t0 = datetime.combine(d, datetime.strptime("09:00:00", "%H:%M:%S").time(), IST).timestamp()
+        t1 = datetime.combine(d, datetime.strptime(hms, "%H:%M:%S").time(), IST).timestamp()
+        last = None
+        for s in self.ticks(d):
+            if s["rx"] > t1:
+                break
+            if s["key"] == key and s["rx"] >= t0 and s.get("iep"):
+                last = (s["iep"], s.get("ieq"))
+        return last
 
     def tick_buy(self, d, key, hm, qty):
         """Buy `qty` at the best asks of the first snapshot at/after HH:MM:00 (within max_gap_seconds),
@@ -579,11 +606,16 @@ class Bot:
                 passed.append(f"{x['sym']} (too little history)"); continue
             liq = C_["liquidity_frac"] * fmv
             per = C_.get("max_position_x", C_["leverage"]) * m["equity"]["C"]      # 2:2:1 rule: each stock <= 2x the account
-            notional = min(liq, C_["cap_rs"], budget, per)
+            po = self.preopen_at(d, x["key"], C_.get("live_pick_at", "09:06:30"))   # <= 10% of the pre-open auction, as live
+            pre = (preopen_cap(*po) or 0.0) if po else None                           # None = no pre-open recording that day
+            notional = min(liq, C_["cap_rs"], budget, per, pre if pre is not None else float("inf"))
             qty = int(notional // x["o"])
             if qty * x["o"] < C_["min_position_rs"]:
-                passed.append(f"{x['sym']} (position too small)"); continue
-            why = c_size_why(liq, per, budget)
+                passed.append(f"{x['sym']} (pre-open auction too small)" if pre is not None and pre <= min(liq, C_["cap_rs"], budget, per)
+                              else f"{x['sym']} (position too small)"); continue
+            why = c_size_why(liq, per, budget, pre)
+            if pre is None:
+                why += " (no pre-open recording, so the 10% pre-open cap could not be checked)"
             x.update(qty=qty, why=why); chosen.append(x); budget -= qty * x["o"]
         fills = []
         for x in chosen:
