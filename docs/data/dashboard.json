@@ -1,5 +1,5 @@
 {
- "updated": "25 Nov 2026 13:35 IST",
+ "updated": "25 Nov 2026 16:05 IST",
  "start_date": "2026-11-23",
  "start_c": "2026-11-25",
  "plans": {
@@ -77,7 +77,17 @@
   "rerank_due": "2027-05-25",
   "last_c": "2026-11-25"
  },
- "open": null,
+ "open": {
+  "date": "2026-11-25",
+  "key": "NSE_FO|58992",
+  "symbol": "IDEA FUT 29 DEC 26",
+  "lot": 71475,
+  "lots": 1,
+  "qty": 71475,
+  "entry": 11.75,
+  "entry_time": "15:25:00",
+  "how": "limit 11.74 not filled by 15:25; market: tick best ask at 15:25:00 (ask 11.75 x 2,215,725)"
+ },
  "days": [
   {
    "date": "2026-11-23",
@@ -90,6 +100,19 @@
    "gap_pct": "0.0",
    "B_traded": "False",
    "C_trades": "",
+   "note": ""
+  },
+  {
+   "date": "2026-11-25",
+   "equity_A": "503756",
+   "equity_B": "500000",
+   "equity_C": "507420",
+   "total": "1511176",
+   "A_lots_overnight": "1",
+   "A_contract": "IDEA FUT 29 DEC 26",
+   "gap_pct": "0.42",
+   "B_traded": "False",
+   "C_trades": "1",
    "note": ""
   }
  ],
@@ -219,6 +242,8 @@
    "max_positions": 3,
    "liquidity_frac": 0.05,
    "preopen_frac": 0.1,
+   "stop_pct": 5.0,
+   "_stop_note": "Owner approved 25 Nov 2026 (\"if you think it will be better, just add it\"): disaster stop. If a shorted stock trades 5% or more above our short price after the 09:15 auction and before the 09:20 buy-back, buy it back at once (stop-loss orders are not allowed in the pre-open, so it only works from 09:15; live: an SL-M buy placed right after the fill, cancelled at 09:20). Research (plan_c_exit.py, 2022-26): on the 13 stocks it would have fired once in 5 years (Rs 5 lakh compounding: Rs 50.9 lakh vs Rs 51.0 lakh without); across all 218 stocks it cut the trades that lost 5%+ by 09:20 from 23 to 1 (worst -8.5% -> -5.1%) for about 0.01% a trade. A +3% stop cost Rs 1 lakh (fired 11 times, helped twice: gap-ups often spike and then fall back).",
    "_preopen_note": "Owner approved 25 Nov 2026: each Plan C short is also at most 10% of that stock's pre-open auction value at 09:06:30 (indicative price x indicative matched quantity, Upstox feed fields iep and ieq). A big sell in the auction drags the opening price down. On 25 Nov the whole pre-open was only Rs 9 lakh for PREMIERENE, Rs 15-16 lakh for BLUESTARCO and GODFRYPHLP and Rs 25 lakh for VBL, against 5%-of-opening-minute caps of Rs 3-12 lakh. The gap-up stock that day, POLICYBZR, had Rs 9.1 crore. Not in the 5-year backtest (no pre-open history exists); applies from 25 Nov 2026 when the recorder has the pre-open, in both bots.",
    "cap_rs": 5000000,
    "min_position_rs": 50000,
@@ -287,6 +312,19 @@
     "exit_gap_paise": -6.0
    },
    {
+    "plan": "A",
+    "date": "2026-11-25",
+    "exit_date": "",
+    "qty": 71475,
+    "instrument": null,
+    "shadow_entry": 11.75,
+    "shadow_exit": null,
+    "orders": "buy: sent 15:20:00 (881 ms) \u2713 \u2192 cancelled 15:25:00 \u2192 sent 15:25:00 (252 ms) \u2713",
+    "paper_entry": 11.75,
+    "paper_qty": 71475,
+    "entry_gap_paise": 0.0
+   },
+   {
     "plan": "C",
     "date": "2026-11-25",
     "exit_date": "2026-11-25",
@@ -313,7 +351,12 @@
     "C": 506307
    }
   ],
-  "open": null,
-  "built": "2026-11-25 13:35"
+  "open": {
+   "date": "2026-11-25",
+   "qty": 71475,
+   "instrument": null,
+   "entry": 11.75
+  },
+  "built": "2026-11-25 16:05"
  }
 }
