@@ -7,7 +7,7 @@
    "ret_pct": -0.11,
    "trades": 1,
    "wins": 0,
-   "vs_paper_rs": null,
+   "vs_paper_rs": -4286,
    "missed": 0
   },
   "B": {
@@ -27,7 +27,7 @@
    "ret_pct": 1.26,
    "trades": 1,
    "wins": 1,
-   "vs_paper_rs": null,
+   "vs_paper_rs": -1113,
    "missed": 0,
    "stocks_traded": [
     "POLICYBZR"
@@ -52,8 +52,22 @@
    "orders": "buy: logged only 15:25:00 (no sandbox token); sell: sent 09:00:06 (1320 ms) ✓",
    "shadow_net": -530,
    "paper_entry": 12.01,
+   "paper_exit": 12.07,
+   "paper_net": 3756.0,
    "paper_qty": 71475,
-   "entry_gap_paise": 0.0
+   "diff_rs": -4286,
+   "entry_gap_paise": 0.0,
+   "exit_gap_paise": -6.0
+  },
+  {
+   "plan": "A",
+   "date": "2026-11-25",
+   "exit_date": "",
+   "qty": 71475,
+   "instrument": null,
+   "shadow_entry": 11.75,
+   "shadow_exit": null,
+   "orders": "buy: sent 15:20:00 (881 ms) ✓ → cancelled 15:25:00 → sent 15:25:00 (252 ms) ✓"
   },
   {
    "plan": "C",
@@ -63,8 +77,15 @@
    "instrument": "POLICYBZR shares (MIS)",
    "shadow_entry": 1153.0,
    "shadow_exit": 1145.5342,
-   "orders": "POLICYBZR short: sent 09:06:30 (247 ms) ✓; cover: sent 09:20:00 (636 ms) ✓; the paper bot has not booked this morning yet",
-   "shadow_net": 6307
+   "orders": "POLICYBZR short: sent 09:06:30 (247 ms) ✓; cover: sent 09:20:00 (636 ms) ✓",
+   "shadow_net": 6307,
+   "paper_entry": 1153.0,
+   "paper_exit": 1143.9814,
+   "paper_net": 7420.0,
+   "paper_qty": 867,
+   "diff_rs": -1113,
+   "entry_gap_paise": 0.0,
+   "exit_gap_paise": 155.28
   }
  ],
  "curve": [
@@ -75,6 +96,11 @@
    "C": 506307
   }
  ],
- "open": null,
- "built": "2026-11-25 09:26"
+ "open": {
+  "date": "2026-11-25",
+  "qty": 71475,
+  "instrument": null,
+  "entry": 11.75
+ },
+ "built": "2026-11-25 15:25"
 }
