@@ -8,10 +8,12 @@ Without a sandbox token it only logs them.
            09:06:30 Plan C pick: read each basket stock's INDICATIVE auction price (Upstox feed field 'iep', sent only
              during the pre-open); stocks already >= yesterday's last x 1.02 are taken in priority order, up to 3, each at
              most 2 x the Plan C account and 5 x in total (2:2:1), and get a limit SELL at that price. (NSE closes pre-open order entry at a random
-             second between 09:07 and 09:08, so the pick must be done before 09:07.)
+             second between 09:08 and 09:10 since 7 Sep 2026, so the pick is done before 09:08.)
            09:15 watch the auction prices; B: if its limit was reached, buy back from 09:16:00, else cancel.
              C: each picked stock whose limit was reached is shorted at the auction price; others are cancelled.
-           09:20:00 C: buy back every filled C short (market order at the best asks).
+             C: right after each fill, an SL-M buy at the short price + 5% (disaster stop; stop orders are not allowed in
+             the pre-open, so it starts here); the feed is watched and a trade at that price counts as the stop filling.
+           09:20:00 C: cancel the stop and buy back every filled C short still open (market order at the best asks).
   afternoon (start ~15:05 India): limit buy at 15:20:00, market buy at 15:25:00 if unfilled (futures, NRML).
 
 Every step is logged with the live prices seen at that instant and the order replies -> state/shadow/.
@@ -117,6 +119,44 @@ def c_book(r, src, log, orders):
     else:
         log("fill", {"leg": f"C-none-{sym}", "sym": sym, "open": o, "limit": r["limit"], "iep_at_pick": r["iep"], "source": src})
         orders.cancel(f"C-{sym}-short", r.get("oid"))
+
+
+def c_arm_stop(r, orders, log):
+    """Disaster stop for a filled Plan C short: SL-M buy triggered at the short price + stop_pct (rounded UP to the step)."""
+    sp = C_.get("stop_pct")
+    if not sp or not r.get("filled"):
+        return
+    raw = r["auction"] * (1 + sp / 100)
+    r["stop"] = round(math.ceil(round(raw / vb.tick_size(raw), 6)) * vb.tick_size(raw), 2)
+    r["sl_oid"] = orders.place(f"C-{r['sym']}-stop", r["key"], "BUY", r["qty"], "SL-M", "I", 0.0, r["stop"])
+    log("c_stop_armed", {"sym": r["sym"], "short_price": r["auction"], "stop": r["stop"], "pct": sp, "qty": r["qty"]})
+
+
+def c_stop_fill(r, s, log, how):
+    """Book a triggered stop: an SL-M becomes a market buy, so it fills at the best asks of that moment."""
+    px = walk(s.get("ask"), r["qty"])
+    if px is None and s.get("ltp"):
+        px = round(s["ltp"] + max(vb.tick_size(s["ltp"]) / 2, s["ltp"] * 0.0002), 4)
+    log("fill", {"leg": f"C-cover-{r['sym']}", "sym": r["sym"], "price": px, "qty": r["qty"], "stop": r["stop"], "how": how,
+                 "best_ask": (s.get("ask") or [None])[:3]})
+
+
+def c_watch_stops(clock, feed, held, lock, log, until_hms, t915):
+    """Thread: until the buy-back time, a trade at or above a short's stop price counts as its SL-M filling."""
+    while clock.now().strftime("%H:%M:%S") < until_hms:
+        for r in list(held):
+            if not r.get("stop") or r.get("covered"):
+                continue
+            s = feed.get(r["key"])
+            ltp = s.get("ltp")
+            if ltp and (s.get("rx") or 0) >= t915 and ltp >= r["stop"] - 1e-9:
+                with lock:
+                    if r.get("covered"):
+                        continue
+                    r["covered"] = True
+                c_stop_fill(r, s, log, f"STOP-LOSS: traded ₹{ltp} at {clock.now():%H:%M:%S}, at or above the +{C_['stop_pct']:g}% "
+                                       f"stop ₹{r['stop']}; the SL-M order became a market buy at the best asks")
+        time.sleep(0.2)
 
 
 class Clock:
@@ -252,10 +292,10 @@ class Orders:
             self.api = upstox_client.OrderApiV3(upstox_client.ApiClient(cfg))
             self.uc = upstox_client
 
-    def place(self, label, key, side, qty, order_type, product, price=0.0):
+    def place(self, label, key, side, qty, order_type, product, price=0.0, trigger=0.0):
         body = dict(quantity=int(qty), product=product, validity="DAY", price=round(price, 2), tag=f"vi-shadow-{label}"[:20],
                     instrument_token=key, order_type=order_type, transaction_type=side, disclosed_quantity=0,
-                    trigger_price=0.0, is_amo=False, slice=False)
+                    trigger_price=round(trigger, 2), is_amo=False, slice=False)
         t0 = time.time()
         if self.dry:
             self.log("order_dry", {"label": label, "request": body})
@@ -409,13 +449,20 @@ def main():
         live_open = lambda k: feed.get(k).get("open") if (feed.get(k).get("rx") or 0) >= t915 else None
         while chosen and clock.now().strftime("%H:%M:%S") < "09:15:45" and not all(live_open(r["key"]) for r in chosen):
             time.sleep(0.5)
-        late = []
+        late, held, lock = [], [], threading.Lock()
         for r in chosen:
             r["auction"] = live_open(r["key"])
             if r["auction"]:
                 c_book(r, "live feed", log, orders)
+                if r.get("filled"):
+                    c_arm_stop(r, orders, log); held.append(r)
             else:
                 late.append(r)                     # auction price not seen live yet: read it from the 09:15 candle below
+        watcher = None
+        if chosen and C_.get("stop_pct"):
+            watcher = threading.Thread(target=c_watch_stops, daemon=True,
+                                       args=(clock, feed, held, lock, log, C_["cover_minute"] + ":00", t915))
+            watcher.start()
         if b_filled:
             L = S["limit_orders"]
             clock.wait_until(L["B_place"] + ":00")
@@ -427,15 +474,33 @@ def main():
             r["auction"] = cs["09:15"][0] if "09:15" in cs else None
             if r["auction"]:
                 c_book(r, "09:15 one-minute candle (not seen live by 09:15:45)", log, orders)
+                if r.get("filled"):
+                    c_arm_stop(r, orders, log)
+                    hi = max([cs[k][1] for k in ("09:15", "09:16") if k in cs] or [0])
+                    if r.get("stop") and hi >= r["stop"] - 1e-9:       # the stop was reached before we could watch it
+                        r["covered"] = True
+                        px = round(r["stop"] * 1.0005 + max(vb.tick_size(r["stop"]) / 2, r["stop"] * 0.0002), 4)
+                        log("fill", {"leg": f"C-cover-{r['sym']}", "sym": r["sym"], "price": px, "qty": r["qty"], "stop": r["stop"],
+                                     "how": f"STOP-LOSS from the one-minute candles (high ₹{hi} reached the stop ₹{r['stop']} before "
+                                            "the feed was watched): stop + half a price step + 0.05% slippage"})
+                    held.append(r)
             else:
                 log("error", f"Plan C: {r['sym']} auction price not found; its order is left as it is")
-        # ---- Plan C buy-back at 09:20:00: market buy of every filled short at the best asks
-        held = [r for r in chosen if r.get("filled")]
+        # ---- Plan C buy-back at 09:20:00: cancel the stop, market buy of every short still open at the best asks
+        # (a real bot would modify the SL-M into a market order instead, so a stop that fires during the cancel can't double-buy)
         if crows:
             clock.wait_until(C_["cover_minute"] + ":00")
+            if watcher:
+                watcher.join(timeout=2)
             quotes = {r["key"]: feed.get(r["key"]) for r in held}
             for r in held:
+                with lock:
+                    if r.get("covered"):
+                        continue
+                    r["covered"] = True
                 s = quotes[r["key"]]
+                if r.get("stop"):
+                    orders.cancel(f"C-{r['sym']}-stop", r.get("sl_oid"))
                 orders.place(f"C-{r['sym']}-cover", r["key"], "BUY", r["qty"], "MARKET", "I")
                 px, how = walk(s.get("ask"), r["qty"]), f"market buy at the best asks at {C_['cover_minute']}:00"
                 if px is None and s.get("ltp"):
@@ -522,7 +587,8 @@ def summarize(js):
             return None
         d = det(e); r = d.get("request", {})
         txt = (f"{e['t'][:8]} {what}: {r.get('transaction_type', '').lower()} {_inr(r.get('quantity', 0))} {name(r.get('instrument_token'))}, "
-               f"{'limit ₹' + format(r.get('price'), '.2f') if r.get('order_type') == 'LIMIT' else 'market order'}")
+               + ("limit ₹" + format(r.get("price"), ".2f") if r.get("order_type") == "LIMIT" else
+                  "stop-loss (SL-M), trigger ₹" + format(r.get("trigger_price"), ".2f") if r.get("order_type") == "SL-M" else "market order"))
         if e["what"] == "order_sent":
             return txt + f" → accepted by the Upstox sandbox ({d.get('ms')} ms)"
         if e["what"] == "order_dry":
@@ -611,9 +677,15 @@ def summarize(js):
             elif leg.startswith("C-none-"):
                 lines.append(f"09:15 auction: {f['sym']} opened at ₹{f.get('open')} — below the ₹{f['limit']:.2f} limit, so no short; "
                              "order cancelled.")
+        for e in get("c_stop_armed"):
+            x = det(e)
+            lines.append(f"Stop-loss armed for {x['sym']}: SL-M buy if it trades at ₹{x['stop']} (+{x['pct']:g}% above the ₹{x['short_price']} short).")
+            t = order_text(f"C-{x['sym']}-stop", f"Plan C stop-loss {x['sym']}")
+            if t:
+                lines.append(t)
         for leg, f in fills.items():
             if leg.startswith("C-cover-"):
-                t = order_text(f"C-{f['sym']}-cover", f"Plan C buy-back {f['sym']}")
+                t = None if "STOP-LOSS" in str(f.get("how")) else order_text(f"C-{f['sym']}-cover", f"Plan C buy-back {f['sym']}")
                 if t:
                     lines.append(t)
                 lines.append(f"Bought back {f['sym']} at ₹{f.get('price')} — {f.get('how')}.")

@@ -6,7 +6,8 @@ Plan B  GAP-UP SHORT: a limit sell at yesterday's last price x 1.01 in the pre-o
                       price is that high, at the auction price. Short 5x the account, buy back at 09:16.
 Plan C  GAP-UP BASKET: the same idea on 13 stocks (settings "plan_c"): limit sell at yesterday's last price x 1.02
                       in the pre-open; up to 3 stocks a morning in the list's priority order, each sized to the
-                      stock's opening liquidity and at most 2x the account (2:2:1 of the 5x); buy back at 09:20.
+                      stock's opening liquidity and at most 2x the account (2:2:1 of the 5x); buy back at 09:20,
+                      or at once if the price trades 5% above the short first (disaster stop, from 09:15).
 
 Auction prices = the 09:15 minute's open from Upstox's public 1-minute candles (exact: one price for everyone).
 Buys outside the auction = the real best ask from the tick recorder's files (needs TICKS_KEY), walking the
@@ -355,7 +356,10 @@ class Bot:
         cand = [s for s in self.ticks(d) if s["key"] == key and t0 <= s["rx"] <= t0 + S["ticks"]["max_gap_seconds"] and s["asks"]]
         if not cand:
             return None
-        s = cand[0]
+        return self.buy_at_snapshot(cand[0], qty)
+
+    def buy_at_snapshot(self, s, qty):
+        """Market buy of `qty` against one recorded snapshot's asks (walking the visible depth)."""
         left, cost = qty, 0.0
         for p, q in s["asks"]:
             take = min(left, q); cost += take * p; left -= take
@@ -368,6 +372,40 @@ class Bot:
             note = f"; {left:,} beyond the visible depth priced one step ({step:g}) worse"
         when = datetime.fromtimestamp(s["rx"], IST).strftime("%H:%M:%S")
         return cost / qty, when, f"tick best ask at {when} (ask {s['asks'][0][0]} x {s['asks'][0][1]:,}){note}"
+
+    def c_stop_check(self, d, x, cov):
+        """Plan C disaster stop (settings plan_c.stop_pct): if the stock trades at the short price x (1 + stop%) or higher
+        after the 09:15 auction and before the buy-back time, buy back at that moment. Stop-loss orders are not allowed in
+        the pre-open, so the stop only works from 09:15. Returns (price, time, how), or None if the stop was not reached."""
+        sp = C_.get("stop_pct")
+        if not sp:
+            return None
+        stop = x["o"] * (1 + sp / 100)
+        t0 = datetime.combine(d, datetime.strptime(C_["entry_minute"], "%H:%M").time(), IST).timestamp()
+        t1 = datetime.combine(d, datetime.strptime(cov, "%H:%M").time(), IST).timestamp()
+        snaps = [s for s in self.ticks(d) if s["key"] == x["key"] and t0 <= s["rx"] < t1 and s.get("ltp")]
+        if snaps:
+            hit = next((s for s in snaps if s["ltp"] >= stop - 1e-9), None)
+            if not hit:
+                return None
+            when = datetime.fromtimestamp(hit["rx"], IST).strftime("%H:%M:%S")
+            if hit["asks"]:
+                px, _, note = self.buy_at_snapshot(hit, x["qty"])
+            else:
+                half = max(tick_size(hit["ltp"]) / 2, hit["ltp"] * 0.0002)
+                px, note = hit["ltp"] + half, f"no asks recorded; last price + {half:.4f}"
+            return px, when, f"STOP-LOSS: traded {hit['ltp']} at {when}, at or above the +{sp:g}% stop {stop:.2f}; bought back at once ({note})"
+        for hm in sorted(k for k in x["cs"] if C_["entry_minute"] <= k < cov):      # no ticks: the 1-minute candles
+            o_, h_ = x["cs"][hm][0], x["cs"][hm][1]
+            if hm != C_["entry_minute"] and o_ >= stop:
+                p0, why = o_, f"the {hm} minute opened at {o_}, above the +{sp:g}% stop {stop:.2f}"
+            elif h_ >= stop - 1e-9:
+                p0, why = stop, f"the {hm} minute's high {h_} reached the +{sp:g}% stop {stop:.2f}"
+            else:
+                continue
+            extra = max(tick_size(p0) / 2, p0 * 0.0002) + p0 * 0.0005
+            return p0 + extra, hm, f"STOP-LOSS (no ticks): {why}; filled at {p0:.2f} + half a price step + 0.05% slippage"
+        return None
 
     def limit_then_market(self, d, key, place_hm, fallback_hm, qty):
         """Limit buy at (last traded price at place_hm - 1 paisa); FILLED only if the market later trades below it
@@ -619,9 +657,9 @@ class Bot:
             x.update(qty=qty, why=why); chosen.append(x); budget -= qty * x["o"]
         fills = []
         for x in chosen:
-            tb = self.tick_buy(d, x["key"], cov, x["qty"])
-            if tb is None and self.waiting("morning") and not self.ticks(d):
+            if self.waiting("morning") and not self.ticks(d):
                 log(f"C: {x['sym']} gapped up, waiting for the recorder's {cov} ticks"); return False
+            tb = self.c_stop_check(d, x, cov) or self.tick_buy(d, x["key"], cov, x["qty"])
             if tb is None:
                 c0 = x["cs"][cov][0]
                 half = max(tick_size(c0) / 2, c0 * 0.0002)

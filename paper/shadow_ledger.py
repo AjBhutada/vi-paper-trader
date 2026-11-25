@@ -29,6 +29,13 @@ def _sessions():
     return out
 
 
+def _c_cover_text(st, sym, c):
+    """Order status of a Plan C buy-back: the 09:20 market order, or the stop-loss order if the stop fired."""
+    if c and "STOP-LOSS" in str(c.get("how")):
+        return "stop-loss " + st.get(f"C-{sym}-stop", "-")
+    return st.get(f"C-{sym}-cover", "-")
+
+
 def _orders(events):
     """label -> short status text for the sandbox orders of a session."""
     st = {}
@@ -156,7 +163,7 @@ def build(paper_open=None, last_c=None):
             sym = s["sym"]; c = f.get(f"C-cover-{sym}")
             r = {"plan": "C", "date": d, "exit_date": d, "qty": s["qty"], "instrument": f"{sym} shares (MIS)",
                  "shadow_entry": s["price"], "shadow_exit": c["price"] if c else None,
-                 "orders": f"{sym} short: {st.get(f'C-{sym}-short', '-')}; cover: {st.get(f'C-{sym}-cover', '-')}"}
+                 "orders": f"{sym} short: {st.get(f'C-{sym}-short', '-')}; cover: {_c_cover_text(st, sym, c)}"}
             if c and c["price"]:
                 q = s["qty"]
                 r["shadow_net"] = round((s["price"] - c["price"]) * q - vb.charges("cash", "sell", s["price"] * q) - vb.charges("cash", "buy", c["price"] * q))
