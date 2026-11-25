@@ -19,7 +19,7 @@
   "how": "limit 11.74 not filled by 15:25; market: tick best ask at 15:25:00 (ask 11.75 x 2,215,725)"
  },
  "alerted": {},
- "last_run": "2026-11-25T16:05+05:30",
+ "last_run": "2026-11-25T18:05+05:30",
  "holidays": {
   "fetched": "2026-11-23",
   "days": [
