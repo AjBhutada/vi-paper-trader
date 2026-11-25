@@ -163,5 +163,1889 @@
     "detail": "2026-11-24 is not a trading day"
    }
   ]
+ },
+ {
+  "day": "2026-11-25",
+  "session": "Morning",
+  "result": "OK - sandbox orders accepted",
+  "lines": [
+   "Connected to the live Upstox feed at 08:40:53.",
+   "Yesterday's last price ₹11.91 → gap-up limit ₹12.03 (1% higher); short size 2,07,813 shares.",
+   "Overnight position to sell: 71,475 IDEA FUT 29 DEC 26.",
+   "09:00:06 Plan A pre-open sell: sell 71,475 IDEA FUT 29 DEC 26, market order → accepted by the Upstox sandbox (1320 ms)",
+   "09:00:06 Plan B pre-open limit short: sell 2,07,813 VI shares, limit ₹12.03 → accepted by the Upstox sandbox (246 ms)",
+   "09:15 auction: overnight futures sold at ₹12.01.",
+   "09:15 auction: VI opened at ₹11.96 — the ₹12.03 limit was not reached, so no short today.",
+   "Unfilled limit short cancelled in the sandbox.",
+   "Plan C pre-open check at 09:06:30 (Plan C account ₹5,00,000): POLICYBZR indicative ₹1135.0 (+4.21%, limit ₹1110.90) — at least 2% up.",
+   "Closest below 2%: WAAREEENER +1.76%, MAXHEALTH +1.69%, VMM +1.42%.",
+   "Plan C picked POLICYBZR (priority 4): limit short 900 shares at ₹1110.90; size: 2x the account (2:2:1 rule).",
+   "09:06:30 Plan C pre-open limit short POLICYBZR: sell 900 POLICYBZR shares, limit ₹1110.90 → accepted by the Upstox sandbox (247 ms)",
+   "09:15 auction: POLICYBZR opened at ₹1153.0 — the ₹1110.90 limit was REACHED, so the short filled at the auction price.",
+   "09:20:00 Plan C buy-back POLICYBZR: buy 900 POLICYBZR shares, market order → accepted by the Upstox sandbox (636 ms)",
+   "Bought back POLICYBZR at ₹1145.5342 — market buy at the best asks at 09:20:00."
+  ],
+  "raw": [
+   {
+    "t": "08:40:32.185",
+    "what": "plan",
+    "detail": {
+     "prev_last": 11.91,
+     "B_limit": 12.03,
+     "B_qty": 207813,
+     "A_sell": {
+      "symbol": "IDEA FUT 29 DEC 26",
+      "qty": 71475
+     }
+    }
+   },
+   {
+    "t": "08:40:52.101",
+    "what": "c_plan",
+    "detail": {
+     "equity_C": 500000,
+     "pick_at": "09:06:30",
+     "stocks": [
+      {
+       "sym": "IDEA",
+       "prev": 11.91,
+       "limit": 12.15,
+       "open_value": 74290644
+      },
+      {
+       "sym": "VEDL",
+       "prev": 235.53,
+       "limit": 240.25,
+       "open_value": 73598002
+      },
+      {
+       "sym": "VMM",
+       "prev": 94.5,
+       "limit": 96.39,
+       "open_value": 7171069
+      },
+      {
+       "sym": "POLICYBZR",
+       "prev": 1089.1,
+       "limit": 1110.9,
+       "open_value": 32822063
+      },
+      {
+       "sym": "RELIANCE",
+       "prev": 1351.0,
+       "limit": 1378.1,
+       "open_value": 518022401
+      },
+      {
+       "sym": "PREMIERENE",
+       "prev": 809.85,
+       "limit": 826.05,
+       "open_value": 8031178
+      },
+      {
+       "sym": "ONGC",
+       "prev": 222.85,
+       "limit": 227.31,
+       "open_value": 41039455
+      },
+      {
+       "sym": "WAAREEENER",
+       "prev": 2390.0,
+       "limit": 2437.8,
+       "open_value": 27110396
+      },
+      {
+       "sym": "MAXHEALTH",
+       "prev": 1089.55,
+       "limit": 1111.4,
+       "open_value": 52341424
+      },
+      {
+       "sym": "VBL",
+       "prev": 427.15,
+       "limit": 435.7,
+       "open_value": 23630291
+      },
+      {
+       "sym": "TATASTEEL",
+       "prev": 163.0,
+       "limit": 166.26,
+       "open_value": 90468688
+      },
+      {
+       "sym": "BLUESTARCO",
+       "prev": 1785.1,
+       "limit": 1820.9,
+       "open_value": 7872525
+      },
+      {
+       "sym": "GODFRYPHLP",
+       "prev": 1746.9,
+       "limit": 1781.9,
+       "open_value": 5755560
+      }
+     ]
+    }
+   },
+   {
+    "t": "08:40:53.448",
+    "what": "feed",
+    "detail": "connected"
+   },
+   {
+    "t": "09:00:00.800",
+    "what": "preopen_status",
+    "detail": {
+     "status": "PRE_OPEN_START",
+     "updatedTime": "1795577400024"
+    }
+   },
+   {
+    "t": "09:00:05.000",
+    "what": "preopen_snapshot",
+    "detail": {
+     "NSE_EQ|INE669E01016": {
+      "rx": 1795577402.9567788,
+      "ltp": 11.91,
+      "cp": 11.91,
+      "iep": 12.1,
+      "ieq": "113348",
+      "bid": [
+       [
+        12.5,
+        107999
+       ],
+       [
+        12.45,
+        1
+       ],
+       [
+        12.26,
+        19
+       ],
+       [
+        12.2,
+        183
+       ]
+      ],
+      "ask": [
+       [
+        11.37,
+        1
+       ],
+       [
+        11.5,
+        100
+       ],
+       [
+        11.55,
+        124
+       ],
+       [
+        11.61,
+        1007
+       ]
+      ],
+      "open": 12.1,
+      "vtt": "113348"
+     },
+     "NSE_FO|58992": {
+      "rx": 1795577403.1569672,
+      "ltp": 12.01,
+      "cp": 11.99,
+      "iep": 12.01,
+      "ieq": null,
+      "bid": [
+       [
+        11.91,
+        71475
+       ],
+       [
+        11.9,
+        214425
+       ],
+       [
+        11.8,
+        71475
+       ],
+       [
+        11.63,
+        71475
+       ]
+      ],
+      "ask": [
+       [
+        12.3,
+        285900
+       ],
+       [
+        12.4,
+        357375
+       ],
+       [
+        12.5,
+        357375
+       ],
+       [
+        12.6,
+        214425
+       ]
+      ],
+      "open": 12.01,
+      "vtt": null
+     }
+    }
+   },
+   {
+    "t": "09:00:06.320",
+    "what": "order_sent",
+    "detail": {
+     "label": "A-sell",
+     "request": {
+      "quantity": 71475,
+      "product": "D",
+      "validity": "DAY",
+      "price": 0.0,
+      "tag": "vi-shadow-A-sell",
+      "instrument_token": "NSE_FO|58992",
+      "order_type": "MARKET",
+      "transaction_type": "SELL",
+      "disclosed_quantity": 0,
+      "trigger_price": 0.0,
+      "is_amo": false,
+      "slice": false
+     },
+     "status": "success",
+     "order_ids": [
+      "261125090005895"
+     ],
+     "ms": 1320
+    }
+   },
+   {
+    "t": "09:00:06.567",
+    "what": "order_sent",
+    "detail": {
+     "label": "B-limit-short",
+     "request": {
+      "quantity": 207813,
+      "product": "I",
+      "validity": "DAY",
+      "price": 12.03,
+      "tag": "vi-shadow-B-limit-sh",
+      "instrument_token": "NSE_EQ|INE669E01016",
+      "order_type": "LIMIT",
+      "transaction_type": "SELL",
+      "disclosed_quantity": 0,
+      "trigger_price": 0.0,
+      "is_amo": false,
+      "slice": false
+     },
+     "status": "success",
+     "order_ids": [
+      "261125090006463"
+     ],
+     "ms": 246
+    }
+   },
+   {
+    "t": "09:03:00.000",
+    "what": "preopen_09:03:00",
+    "detail": {
+     "NSE_EQ|INE669E01016": {
+      "ltp": 11.91,
+      "iep": 12.0,
+      "open": 12.0,
+      "ask": [
+       [
+        10.83,
+        8000
+       ],
+       [
+        11.0,
+        3500
+       ],
+       [
+        11.2,
+        26850
+       ],
+       [
+        11.3,
+        101
+       ]
+      ],
+      "bid": [
+       [
+        13.1,
+        41
+       ],
+       [
+        13.09,
+        1
+       ],
+       [
+        13.08,
+        1
+       ],
+       [
+        13.07,
+        1
+       ]
+      ]
+     },
+     "NSE_FO|58992": {
+      "ltp": 12.01,
+      "iep": 12.01,
+      "open": 12.01,
+      "ask": [
+       [
+        12.18,
+        71475
+       ],
+       [
+        12.24,
+        71475
+       ],
+       [
+        12.25,
+        285900
+       ],
+       [
+        12.27,
+        285900
+       ]
+      ],
+      "bid": [
+       [
+        11.91,
+        71475
+       ],
+       [
+        11.9,
+        285900
+       ],
+       [
+        11.86,
+        71475
+       ],
+       [
+        11.82,
+        71475
+       ]
+      ]
+     },
+     "RELIANCE": {
+      "ltp": 1351.0,
+      "iep": 1348.4,
+      "ieq": "221810",
+      "open": 1348.4
+     },
+     "WAAREEENER": {
+      "ltp": 2390.0,
+      "iep": 2435.0,
+      "ieq": "1908",
+      "open": 2435.0
+     },
+     "BLUESTARCO": {
+      "ltp": 1785.1,
+      "iep": 1782.0,
+      "ieq": "726",
+      "open": 1782.0
+     },
+     "GODFRYPHLP": {
+      "ltp": 1746.9,
+      "iep": 1750.0,
+      "ieq": "483",
+      "open": 1750.0
+     },
+     "VBL": {
+      "ltp": 427.15,
+      "iep": 427.15,
+      "ieq": "5696",
+      "open": 427.15
+     },
+     "PREMIERENE": {
+      "ltp": 809.85,
+      "iep": 815.0,
+      "ieq": "691",
+      "open": 815.0
+     },
+     "ONGC": {
+      "ltp": 222.85,
+      "iep": 224.7,
+      "ieq": "42352",
+      "open": 224.7
+     },
+     "VEDL": {
+      "ltp": 235.53,
+      "iep": 239.53,
+      "ieq": "80938",
+      "open": 239.53
+     },
+     "TATASTEEL": {
+      "ltp": 163.0,
+      "iep": 164.99,
+      "ieq": "497642",
+      "open": 164.99
+     },
+     "VMM": {
+      "ltp": 94.5,
+      "iep": 96.5,
+      "ieq": "19249",
+      "open": 96.5
+     },
+     "POLICYBZR": {
+      "ltp": 1089.1,
+      "iep": 1089.0,
+      "ieq": "80912",
+      "open": 1089.0
+     },
+     "MAXHEALTH": {
+      "ltp": 1089.55,
+      "iep": 1102.6,
+      "ieq": "24685",
+      "open": 1102.6
+     }
+    }
+   },
+   {
+    "t": "09:05:00.000",
+    "what": "preopen_09:05:00",
+    "detail": {
+     "NSE_EQ|INE669E01016": {
+      "ltp": 11.91,
+      "iep": 11.99,
+      "open": 11.99,
+      "ask": [
+       [
+        10.83,
+        8000
+       ],
+       [
+        11.0,
+        3501
+       ],
+       [
+        11.2,
+        26850
+       ],
+       [
+        11.3,
+        101
+       ]
+      ],
+      "bid": [
+       [
+        13.1,
+        41
+       ],
+       [
+        13.09,
+        1
+       ],
+       [
+        13.08,
+        1
+       ],
+       [
+        13.07,
+        1
+       ]
+      ]
+     },
+     "NSE_FO|58992": {
+      "ltp": 12.01,
+      "iep": 12.01,
+      "open": 12.01,
+      "ask": [
+       [
+        12.09,
+        142950
+       ],
+       [
+        12.13,
+        71475
+       ],
+       [
+        12.14,
+        2644575
+       ],
+       [
+        12.15,
+        71475
+       ]
+      ],
+      "bid": [
+       [
+        11.93,
+        71475
+       ],
+       [
+        11.92,
+        71475
+       ],
+       [
+        11.91,
+        71475
+       ],
+       [
+        11.9,
+        285900
+       ]
+      ]
+     },
+     "RELIANCE": {
+      "ltp": 1351.0,
+      "iep": 1356.5,
+      "ieq": "253673",
+      "open": 1356.5
+     },
+     "WAAREEENER": {
+      "ltp": 2390.0,
+      "iep": 2434.0,
+      "ieq": "2432",
+      "open": 2434.0
+     },
+     "BLUESTARCO": {
+      "ltp": 1785.1,
+      "iep": 1782.0,
+      "ieq": "845",
+      "open": 1782.0
+     },
+     "GODFRYPHLP": {
+      "ltp": 1746.9,
+      "iep": 1750.0,
+      "ieq": "806",
+      "open": 1750.0
+     },
+     "VBL": {
+      "ltp": 427.15,
+      "iep": 427.15,
+      "ieq": "5840",
+      "open": 427.15
+     },
+     "PREMIERENE": {
+      "ltp": 809.85,
+      "iep": 814.9,
+      "ieq": "976",
+      "open": 814.9
+     },
+     "ONGC": {
+      "ltp": 222.85,
+      "iep": 224.0,
+      "ieq": "54263",
+      "open": 224.0
+     },
+     "VEDL": {
+      "ltp": 235.53,
+      "iep": 239.89,
+      "ieq": "107481",
+      "open": 239.89
+     },
+     "TATASTEEL": {
+      "ltp": 163.0,
+      "iep": 164.7,
+      "ieq": "562655",
+      "open": 164.7
+     },
+     "VMM": {
+      "ltp": 94.5,
+      "iep": 96.0,
+      "ieq": "34028",
+      "open": 96.0
+     },
+     "POLICYBZR": {
+      "ltp": 1089.1,
+      "iep": 1089.0,
+      "ieq": "82264",
+      "open": 1089.0
+     },
+     "MAXHEALTH": {
+      "ltp": 1089.55,
+      "iep": 1105.45,
+      "ieq": "31003",
+      "open": 1105.45
+     }
+    }
+   },
+   {
+    "t": "09:05:00.331",
+    "what": "preopen_status",
+    "detail": {
+     "status": "PRE_OPEN_M_END",
+     "updatedTime": "1795577700111"
+    }
+   },
+   {
+    "t": "09:06:30.000",
+    "what": "preopen_09:06:30",
+    "detail": {
+     "NSE_EQ|INE669E01016": {
+      "ltp": 11.91,
+      "iep": 11.96,
+      "open": 11.96,
+      "ask": [
+       [
+        10.72,
+        470
+       ],
+       [
+        10.83,
+        8000
+       ],
+       [
+        11.0,
+        3501
+       ],
+       [
+        11.19,
+        100000
+       ]
+      ],
+      "bid": [
+       [
+        13.1,
+        41
+       ],
+       [
+        13.09,
+        1
+       ],
+       [
+        13.08,
+        1
+       ],
+       [
+        13.07,
+        1
+       ]
+      ]
+     },
+     "NSE_FO|58992": {
+      "ltp": 12.01,
+      "iep": 12.01,
+      "open": 12.01,
+      "ask": [
+       [
+        12.08,
+        71475
+       ],
+       [
+        12.09,
+        142950
+       ],
+       [
+        12.13,
+        71475
+       ],
+       [
+        12.14,
+        2644575
+       ]
+      ],
+      "bid": [
+       [
+        12.01,
+        71475
+       ],
+       [
+        12.0,
+        71475
+       ],
+       [
+        11.97,
+        71475
+       ],
+       [
+        11.94,
+        71475
+       ]
+      ]
+     },
+     "RELIANCE": {
+      "ltp": 1351.0,
+      "iep": 1359.9,
+      "ieq": "362796",
+      "open": 1359.9
+     },
+     "WAAREEENER": {
+      "ltp": 2390.0,
+      "iep": 2432.0,
+      "ieq": "2490",
+      "open": 2432.0
+     },
+     "BLUESTARCO": {
+      "ltp": 1785.1,
+      "iep": 1782.0,
+      "ieq": "852",
+      "open": 1782.0
+     },
+     "GODFRYPHLP": {
+      "ltp": 1746.9,
+      "iep": 1750.0,
+      "ieq": "926",
+      "open": 1750.0
+     },
+     "VBL": {
+      "ltp": 427.15,
+      "iep": 427.15,
+      "ieq": "5883",
+      "open": 427.15
+     },
+     "PREMIERENE": {
+      "ltp": 809.85,
+      "iep": 814.9,
+      "ieq": "1099",
+      "open": 814.9
+     },
+     "ONGC": {
+      "ltp": 222.85,
+      "iep": 224.0,
+      "ieq": "60835",
+      "open": 224.0
+     },
+     "VEDL": {
+      "ltp": 235.53,
+      "iep": 237.89,
+      "ieq": "121508",
+      "open": 237.89
+     },
+     "TATASTEEL": {
+      "ltp": 163.0,
+      "iep": 164.7,
+      "ieq": "634481",
+      "open": 164.7
+     },
+     "VMM": {
+      "ltp": 94.5,
+      "iep": 95.84,
+      "ieq": "35569",
+      "open": 95.84
+     },
+     "POLICYBZR": {
+      "ltp": 1089.1,
+      "iep": 1135.0,
+      "ieq": "80152",
+      "open": 1135.0
+     },
+     "MAXHEALTH": {
+      "ltp": 1089.55,
+      "iep": 1108.0,
+      "ieq": "37714",
+      "open": 1108.0
+     }
+    }
+   },
+   {
+    "t": "09:06:30.000",
+    "what": "c_pick",
+    "detail": {
+     "at": "09:06:30",
+     "equity_C": 500000,
+     "stocks": [
+      {
+       "sym": "IDEA",
+       "key": "NSE_EQ|INE669E01016",
+       "rank": 1,
+       "prev": 11.91,
+       "limit": 12.15,
+       "iep": 11.96,
+       "ieq": "1048159",
+       "iep_age_s": 0,
+       "gap_ind": 0.42,
+       "signal": false,
+       "picked": false,
+       "why_not": null,
+       "qty": null,
+       "size_why": null
+      },
+      {
+       "sym": "VEDL",
+       "key": "NSE_EQ|INE205A01025",
+       "rank": 2,
+       "prev": 235.53,
+       "limit": 240.25,
+       "iep": 237.89,
+       "ieq": "121508",
+       "iep_age_s": 1,
+       "gap_ind": 1.0,
+       "signal": false,
+       "picked": false,
+       "why_not": null,
+       "qty": null,
+       "size_why": null
+      },
+      {
+       "sym": "VMM",
+       "key": "NSE_EQ|INE01EA01019",
+       "rank": 3,
+       "prev": 94.5,
+       "limit": 96.39,
+       "iep": 95.84,
+       "ieq": "35569",
+       "iep_age_s": 1,
+       "gap_ind": 1.42,
+       "signal": false,
+       "picked": false,
+       "why_not": null,
+       "qty": null,
+       "size_why": null
+      },
+      {
+       "sym": "POLICYBZR",
+       "key": "NSE_EQ|INE417T01026",
+       "rank": 4,
+       "prev": 1089.1,
+       "limit": 1110.9,
+       "iep": 1135.0,
+       "ieq": "80152",
+       "iep_age_s": 1,
+       "gap_ind": 4.21,
+       "signal": true,
+       "picked": true,
+       "why_not": null,
+       "qty": 900,
+       "size_why": "2x the account (2:2:1 rule)"
+      },
+      {
+       "sym": "RELIANCE",
+       "key": "NSE_EQ|INE002A01018",
+       "rank": 5,
+       "prev": 1351.0,
+       "limit": 1378.1,
+       "iep": 1359.9,
+       "ieq": "362796",
+       "iep_age_s": 0,
+       "gap_ind": 0.66,
+       "signal": false,
+       "picked": false,
+       "why_not": null,
+       "qty": null,
+       "size_why": null
+      },
+      {
+       "sym": "PREMIERENE",
+       "key": "NSE_EQ|INE0BS701011",
+       "rank": 6,
+       "prev": 809.85,
+       "limit": 826.05,
+       "iep": 814.9,
+       "ieq": "1099",
+       "iep_age_s": 3,
+       "gap_ind": 0.62,
+       "signal": false,
+       "picked": false,
+       "why_not": null,
+       "qty": null,
+       "size_why": null
+      },
+      {
+       "sym": "ONGC",
+       "key": "NSE_EQ|INE213A01029",
+       "rank": 7,
+       "prev": 222.85,
+       "limit": 227.31,
+       "iep": 224.0,
+       "ieq": "60835",
+       "iep_age_s": 1,
+       "gap_ind": 0.52,
+       "signal": false,
+       "picked": false,
+       "why_not": null,
+       "qty": null,
+       "size_why": null
+      },
+      {
+       "sym": "WAAREEENER",
+       "key": "NSE_EQ|INE377N01017",
+       "rank": 8,
+       "prev": 2390.0,
+       "limit": 2437.8,
+       "iep": 2432.0,
+       "ieq": "2490",
+       "iep_age_s": 0,
+       "gap_ind": 1.76,
+       "signal": false,
+       "picked": false,
+       "why_not": null,
+       "qty": null,
+       "size_why": null
+      },
+      {
+       "sym": "MAXHEALTH",
+       "key": "NSE_EQ|INE027H01010",
+       "rank": 9,
+       "prev": 1089.55,
+       "limit": 1111.4,
+       "iep": 1108.0,
+       "ieq": "37714",
+       "iep_age_s": 1,
+       "gap_ind": 1.69,
+       "signal": false,
+       "picked": false,
+       "why_not": null,
+       "qty": null,
+       "size_why": null
+      },
+      {
+       "sym": "VBL",
+       "key": "NSE_EQ|INE200M01039",
+       "rank": 10,
+       "prev": 427.15,
+       "limit": 435.7,
+       "iep": 427.15,
+       "ieq": "5883",
+       "iep_age_s": 2,
+       "gap_ind": 0.0,
+       "signal": false,
+       "picked": false,
+       "why_not": null,
+       "qty": null,
+       "size_why": null
+      },
+      {
+       "sym": "TATASTEEL",
+       "key": "NSE_EQ|INE081A01020",
+       "rank": 11,
+       "prev": 163.0,
+       "limit": 166.26,
+       "iep": 164.7,
+       "ieq": "634481",
+       "iep_age_s": 0,
+       "gap_ind": 1.04,
+       "signal": false,
+       "picked": false,
+       "why_not": null,
+       "qty": null,
+       "size_why": null
+      },
+      {
+       "sym": "BLUESTARCO",
+       "key": "NSE_EQ|INE472A01039",
+       "rank": 12,
+       "prev": 1785.1,
+       "limit": 1820.9,
+       "iep": 1782.0,
+       "ieq": "852",
+       "iep_age_s": 0,
+       "gap_ind": -0.17,
+       "signal": false,
+       "picked": false,
+       "why_not": null,
+       "qty": null,
+       "size_why": null
+      },
+      {
+       "sym": "GODFRYPHLP",
+       "key": "NSE_EQ|INE260B01028",
+       "rank": 13,
+       "prev": 1746.9,
+       "limit": 1781.9,
+       "iep": 1750.0,
+       "ieq": "926",
+       "iep_age_s": 0,
+       "gap_ind": 0.18,
+       "signal": false,
+       "picked": false,
+       "why_not": null,
+       "qty": null,
+       "size_why": null
+      }
+     ]
+    }
+   },
+   {
+    "t": "09:06:30.247",
+    "what": "order_sent",
+    "detail": {
+     "label": "C-POLICYBZR-short",
+     "request": {
+      "quantity": 900,
+      "product": "I",
+      "validity": "DAY",
+      "price": 1110.9,
+      "tag": "vi-shadow-C-POLICYBZ",
+      "instrument_token": "NSE_EQ|INE417T01026",
+      "order_type": "LIMIT",
+      "transaction_type": "SELL",
+      "disclosed_quantity": 0,
+      "trigger_price": 0.0,
+      "is_amo": false,
+      "slice": false
+     },
+     "status": "success",
+     "order_ids": [
+      "261125090630146"
+     ],
+     "ms": 247
+    }
+   },
+   {
+    "t": "09:07:00.000",
+    "what": "preopen_09:07:00",
+    "detail": {
+     "NSE_EQ|INE669E01016": {
+      "ltp": 11.91,
+      "iep": 11.96,
+      "open": 11.96,
+      "ask": [
+       [
+        10.72,
+        470
+       ],
+       [
+        10.83,
+        8000
+       ],
+       [
+        11.0,
+        3501
+       ],
+       [
+        11.19,
+        100000
+       ]
+      ],
+      "bid": [
+       [
+        13.1,
+        42
+       ],
+       [
+        13.09,
+        1
+       ],
+       [
+        13.08,
+        1
+       ],
+       [
+        13.07,
+        1
+       ]
+      ]
+     },
+     "NSE_FO|58992": {
+      "ltp": 12.01,
+      "iep": 12.01,
+      "open": 12.01,
+      "ask": [
+       [
+        12.08,
+        71475
+       ],
+       [
+        12.09,
+        142950
+       ],
+       [
+        12.13,
+        71475
+       ],
+       [
+        12.14,
+        2644575
+       ]
+      ],
+      "bid": [
+       [
+        12.01,
+        71475
+       ],
+       [
+        12.0,
+        71475
+       ],
+       [
+        11.97,
+        71475
+       ],
+       [
+        11.94,
+        71475
+       ]
+      ]
+     },
+     "RELIANCE": {
+      "ltp": 1351.0,
+      "iep": 1358.6,
+      "ieq": "364399",
+      "open": 1358.6
+     },
+     "WAAREEENER": {
+      "ltp": 2390.0,
+      "iep": 2430.0,
+      "ieq": "2491",
+      "open": 2430.0
+     },
+     "BLUESTARCO": {
+      "ltp": 1785.1,
+      "iep": 1782.0,
+      "ieq": "852",
+      "open": 1782.0
+     },
+     "GODFRYPHLP": {
+      "ltp": 1746.9,
+      "iep": 1750.0,
+      "ieq": "926",
+      "open": 1750.0
+     },
+     "VBL": {
+      "ltp": 427.15,
+      "iep": 427.15,
+      "ieq": "5908",
+      "open": 427.15
+     },
+     "PREMIERENE": {
+      "ltp": 809.85,
+      "iep": 813.6,
+      "ieq": "1198",
+      "open": 813.6
+     },
+     "ONGC": {
+      "ltp": 222.85,
+      "iep": 224.0,
+      "ieq": "61509",
+      "open": 224.0
+     },
+     "VEDL": {
+      "ltp": 235.53,
+      "iep": 237.99,
+      "ieq": "121998",
+      "open": 237.99
+     },
+     "TATASTEEL": {
+      "ltp": 163.0,
+      "iep": 164.7,
+      "ieq": "667867",
+      "open": 164.7
+     },
+     "VMM": {
+      "ltp": 94.5,
+      "iep": 95.8,
+      "ieq": "34669",
+      "open": 95.8
+     },
+     "POLICYBZR": {
+      "ltp": 1089.1,
+      "iep": 1136.1,
+      "ieq": "85080",
+      "open": 1136.1
+     },
+     "MAXHEALTH": {
+      "ltp": 1089.55,
+      "iep": 1108.0,
+      "ieq": "43494",
+      "open": 1108.0
+     }
+    }
+   },
+   {
+    "t": "09:07:50.000",
+    "what": "preopen_09:07:50",
+    "detail": {
+     "NSE_EQ|INE669E01016": {
+      "ltp": 11.91,
+      "iep": 11.96,
+      "open": 11.96,
+      "ask": [
+       [
+        10.72,
+        470
+       ],
+       [
+        10.83,
+        8000
+       ],
+       [
+        11.0,
+        3501
+       ],
+       [
+        11.19,
+        100000
+       ]
+      ],
+      "bid": [
+       [
+        13.1,
+        42
+       ],
+       [
+        13.09,
+        1
+       ],
+       [
+        13.08,
+        1
+       ],
+       [
+        13.07,
+        1
+       ]
+      ]
+     },
+     "NSE_FO|58992": {
+      "ltp": 12.01,
+      "iep": 12.01,
+      "open": 12.01,
+      "ask": [
+       [
+        12.08,
+        71475
+       ],
+       [
+        12.09,
+        142950
+       ],
+       [
+        12.13,
+        71475
+       ],
+       [
+        12.14,
+        2644575
+       ]
+      ],
+      "bid": [
+       [
+        12.01,
+        71475
+       ],
+       [
+        12.0,
+        71475
+       ],
+       [
+        11.97,
+        71475
+       ],
+       [
+        11.94,
+        71475
+       ]
+      ]
+     },
+     "RELIANCE": {
+      "ltp": 1351.0,
+      "iep": 1360.1,
+      "ieq": "424111",
+      "open": 1360.1
+     },
+     "WAAREEENER": {
+      "ltp": 2390.0,
+      "iep": 2426.9,
+      "ieq": "2582",
+      "open": 2426.9
+     },
+     "BLUESTARCO": {
+      "ltp": 1785.1,
+      "iep": 1790.0,
+      "ieq": "1001",
+      "open": 1790.0
+     },
+     "GODFRYPHLP": {
+      "ltp": 1746.9,
+      "iep": 1750.0,
+      "ieq": "1082",
+      "open": 1750.0
+     },
+     "VBL": {
+      "ltp": 427.15,
+      "iep": 427.15,
+      "ieq": "5734",
+      "open": 427.15
+     },
+     "PREMIERENE": {
+      "ltp": 809.85,
+      "iep": 813.6,
+      "ieq": "1237",
+      "open": 813.6
+     },
+     "ONGC": {
+      "ltp": 222.85,
+      "iep": 223.38,
+      "ieq": "66677",
+      "open": 223.38
+     },
+     "VEDL": {
+      "ltp": 235.53,
+      "iep": 235.53,
+      "ieq": "152829",
+      "open": 235.53
+     },
+     "TATASTEEL": {
+      "ltp": 163.0,
+      "iep": 164.1,
+      "ieq": "746049",
+      "open": 164.1
+     },
+     "VMM": {
+      "ltp": 94.5,
+      "iep": 95.8,
+      "ieq": "36090",
+      "open": 95.8
+     },
+     "POLICYBZR": {
+      "ltp": 1089.1,
+      "iep": 1145.0,
+      "ieq": "91456",
+      "open": 1145.0
+     },
+     "MAXHEALTH": {
+      "ltp": 1089.55,
+      "iep": 1108.0,
+      "ieq": "48368",
+      "open": 1108.0
+     }
+    }
+   },
+   {
+    "t": "09:08:30.000",
+    "what": "preopen_09:08:30",
+    "detail": {
+     "NSE_EQ|INE669E01016": {
+      "ltp": 11.91,
+      "iep": 11.96,
+      "open": 11.96,
+      "ask": [
+       [
+        10.72,
+        5843
+       ],
+       [
+        10.83,
+        8000
+       ],
+       [
+        11.0,
+        3501
+       ],
+       [
+        11.19,
+        100000
+       ]
+      ],
+      "bid": [
+       [
+        13.1,
+        43
+       ],
+       [
+        13.09,
+        1
+       ],
+       [
+        13.08,
+        1
+       ],
+       [
+        13.07,
+        1
+       ]
+      ]
+     },
+     "NSE_FO|58992": {
+      "ltp": 12.01,
+      "iep": 12.01,
+      "open": 12.01,
+      "ask": [
+       [
+        12.08,
+        71475
+       ],
+       [
+        12.09,
+        5146200
+       ],
+       [
+        12.13,
+        71475
+       ],
+       [
+        12.14,
+        2644575
+       ]
+      ],
+      "bid": [
+       [
+        12.01,
+        71475
+       ],
+       [
+        12.0,
+        71475
+       ],
+       [
+        11.97,
+        71475
+       ],
+       [
+        11.94,
+        71475
+       ]
+      ]
+     },
+     "RELIANCE": {
+      "ltp": 1351.0,
+      "iep": 1360.0,
+      "ieq": "445466",
+      "open": 1360.0
+     },
+     "WAAREEENER": {
+      "ltp": 2390.0,
+      "iep": 2414.0,
+      "ieq": "2704",
+      "open": 2414.0
+     },
+     "BLUESTARCO": {
+      "ltp": 1785.1,
+      "iep": 1790.0,
+      "ieq": "1166",
+      "open": 1790.0
+     },
+     "GODFRYPHLP": {
+      "ltp": 1746.9,
+      "iep": 1750.0,
+      "ieq": "1309",
+      "open": 1750.0
+     },
+     "VBL": {
+      "ltp": 427.15,
+      "iep": 430.0,
+      "ieq": "8569",
+      "open": 430.0
+     },
+     "PREMIERENE": {
+      "ltp": 809.85,
+      "iep": 813.9,
+      "ieq": "1379",
+      "open": 813.9
+     },
+     "ONGC": {
+      "ltp": 222.85,
+      "iep": 223.17,
+      "ieq": "75137",
+      "open": 223.17
+     },
+     "VEDL": {
+      "ltp": 235.53,
+      "iep": 235.0,
+      "ieq": "179035",
+      "open": 235.0
+     },
+     "TATASTEEL": {
+      "ltp": 163.0,
+      "iep": 163.17,
+      "ieq": "945118",
+      "open": 163.17
+     },
+     "VMM": {
+      "ltp": 94.5,
+      "iep": 95.05,
+      "ieq": "41143",
+      "open": 95.05
+     },
+     "POLICYBZR": {
+      "ltp": 1089.1,
+      "iep": 1151.0,
+      "ieq": "90685",
+      "open": 1151.0
+     },
+     "MAXHEALTH": {
+      "ltp": 1089.55,
+      "iep": 1101.5,
+      "ieq": "81296",
+      "open": 1101.5
+     }
+    }
+   },
+   {
+    "t": "09:08:47.146",
+    "what": "preopen_status",
+    "detail": {
+     "status": "PRE_OPEN_END",
+     "updatedTime": "1795577927005"
+    }
+   },
+   {
+    "t": "09:12:00.000",
+    "what": "preopen_09:12:00",
+    "detail": {
+     "NSE_EQ|INE669E01016": {
+      "ltp": 11.96,
+      "iep": null,
+      "open": 11.96,
+      "ask": [
+       [
+        11.96,
+        19951
+       ],
+       [
+        11.97,
+        23019
+       ],
+       [
+        11.98,
+        17826
+       ],
+       [
+        11.99,
+        178800
+       ],
+       [
+        12.0,
+        73083
+       ]
+      ],
+      "bid": [
+       [
+        11.95,
+        334938
+       ],
+       [
+        11.94,
+        120153
+       ],
+       [
+        11.93,
+        67831
+       ],
+       [
+        11.92,
+        92792
+       ],
+       [
+        11.91,
+        999199
+       ]
+      ]
+     },
+     "NSE_FO|58992": {
+      "ltp": 12.01,
+      "iep": null,
+      "open": 12.01,
+      "ask": [
+       [
+        12.08,
+        71475
+       ],
+       [
+        12.09,
+        5146200
+       ],
+       [
+        12.12,
+        5003250
+       ],
+       [
+        12.13,
+        71475
+       ],
+       [
+        12.14,
+        2644575
+       ]
+      ],
+      "bid": [
+       [
+        12.02,
+        71475
+       ],
+       [
+        12.01,
+        71475
+       ],
+       [
+        12.0,
+        142950
+       ],
+       [
+        11.97,
+        71475
+       ],
+       [
+        11.94,
+        71475
+       ]
+      ]
+     },
+     "RELIANCE": {
+      "ltp": 1359.8,
+      "iep": null,
+      "ieq": null,
+      "open": 1359.8
+     },
+     "WAAREEENER": {
+      "ltp": 2414.0,
+      "iep": null,
+      "ieq": null,
+      "open": 2414.0
+     },
+     "BLUESTARCO": {
+      "ltp": 1790.0,
+      "iep": null,
+      "ieq": null,
+      "open": 1790.0
+     },
+     "GODFRYPHLP": {
+      "ltp": 1750.0,
+      "iep": null,
+      "ieq": null,
+      "open": 1750.0
+     },
+     "VBL": {
+      "ltp": 430.0,
+      "iep": null,
+      "ieq": null,
+      "open": 430.0
+     },
+     "PREMIERENE": {
+      "ltp": 814.0,
+      "iep": null,
+      "ieq": null,
+      "open": 814.0
+     },
+     "ONGC": {
+      "ltp": 223.27,
+      "iep": null,
+      "ieq": null,
+      "open": 223.27
+     },
+     "VEDL": {
+      "ltp": 235.0,
+      "iep": null,
+      "ieq": null,
+      "open": 235.0
+     },
+     "TATASTEEL": {
+      "ltp": 163.17,
+      "iep": null,
+      "ieq": null,
+      "open": 163.17
+     },
+     "VMM": {
+      "ltp": 95.0,
+      "iep": null,
+      "ieq": null,
+      "open": 95.0
+     },
+     "POLICYBZR": {
+      "ltp": 1153.0,
+      "iep": null,
+      "ieq": null,
+      "open": 1153.0
+     },
+     "MAXHEALTH": {
+      "ltp": 1099.65,
+      "iep": null,
+      "ieq": null,
+      "open": 1099.65
+     }
+    }
+   },
+   {
+    "t": "09:15:01.000",
+    "what": "auction",
+    "detail": {
+     "VI_open": 11.96,
+     "B_limit": 12.03,
+     "B_filled": false,
+     "A_future_open": 12.01
+    }
+   },
+   {
+    "t": "09:15:01.000",
+    "what": "fill",
+    "detail": {
+     "leg": "A-sell",
+     "price": 12.01,
+     "qty": 71475,
+     "symbol": "IDEA FUT 29 DEC 26",
+     "bought_on": "2026-11-23"
+    }
+   },
+   {
+    "t": "09:15:01.000",
+    "what": "fill",
+    "detail": {
+     "leg": "B-none",
+     "open": 11.96,
+     "limit": 12.03
+    }
+   },
+   {
+    "t": "09:15:01.743",
+    "what": "cancel_sent",
+    "detail": {
+     "label": "B-limit-short",
+     "order_id": "261125090006463",
+     "status": "success",
+     "ms": 743
+    }
+   },
+   {
+    "t": "09:15:01.743",
+    "what": "fill",
+    "detail": {
+     "leg": "C-short-POLICYBZR",
+     "sym": "POLICYBZR",
+     "price": 1153.0,
+     "qty": 900,
+     "limit": 1110.9,
+     "prev_last": 1089.1,
+     "iep_at_pick": 1135.0,
+     "rank": 4,
+     "source": "live feed"
+    }
+   },
+   {
+    "t": "09:20:00.636",
+    "what": "order_sent",
+    "detail": {
+     "label": "C-POLICYBZR-cover",
+     "request": {
+      "quantity": 900,
+      "product": "I",
+      "validity": "DAY",
+      "price": 0.0,
+      "tag": "vi-shadow-C-POLICYBZ",
+      "instrument_token": "NSE_EQ|INE417T01026",
+      "order_type": "MARKET",
+      "transaction_type": "BUY",
+      "disclosed_quantity": 0,
+      "trigger_price": 0.0,
+      "is_amo": false,
+      "slice": false
+     },
+     "status": "success",
+     "order_ids": [
+      "261125092000531"
+     ],
+     "ms": 636
+    }
+   },
+   {
+    "t": "09:20:00.636",
+    "what": "fill",
+    "detail": {
+     "leg": "C-cover-POLICYBZR",
+     "sym": "POLICYBZR",
+     "price": 1145.5342,
+     "qty": 900,
+     "how": "market buy at the best asks at 09:20:00",
+     "best_ask": [
+      [
+       1145.1,
+       130
+      ],
+      [
+       1145.2,
+       27
+      ],
+      [
+       1145.3,
+       8
+      ]
+     ]
+    }
+   },
+   {
+    "t": "09:20:00.636",
+    "what": "c_opens",
+    "detail": {
+     "IDEA": {
+      "open": 11.96,
+      "prev": 11.91,
+      "limit": 12.15,
+      "picked": false
+     },
+     "VEDL": {
+      "open": 235.0,
+      "prev": 235.53,
+      "limit": 240.25,
+      "picked": false
+     },
+     "VMM": {
+      "open": 95.0,
+      "prev": 94.5,
+      "limit": 96.39,
+      "picked": false
+     },
+     "POLICYBZR": {
+      "open": 1153.0,
+      "prev": 1089.1,
+      "limit": 1110.9,
+      "picked": true
+     },
+     "RELIANCE": {
+      "open": 1359.8,
+      "prev": 1351.0,
+      "limit": 1378.1,
+      "picked": false
+     },
+     "PREMIERENE": {
+      "open": 814.0,
+      "prev": 809.85,
+      "limit": 826.05,
+      "picked": false
+     },
+     "ONGC": {
+      "open": 223.27,
+      "prev": 222.85,
+      "limit": 227.31,
+      "picked": false
+     },
+     "WAAREEENER": {
+      "open": 2414.0,
+      "prev": 2390.0,
+      "limit": 2437.8,
+      "picked": false
+     },
+     "MAXHEALTH": {
+      "open": 1099.65,
+      "prev": 1089.55,
+      "limit": 1111.4,
+      "picked": false
+     },
+     "VBL": {
+      "open": 430.0,
+      "prev": 427.15,
+      "limit": 435.7,
+      "picked": false
+     },
+     "TATASTEEL": {
+      "open": 163.17,
+      "prev": 163.0,
+      "limit": 166.26,
+      "picked": false
+     },
+     "BLUESTARCO": {
+      "open": 1790.0,
+      "prev": 1785.1,
+      "limit": 1820.9,
+      "picked": false
+     },
+     "GODFRYPHLP": {
+      "open": 1750.0,
+      "prev": 1746.9,
+      "limit": 1781.9,
+      "picked": false
+     }
+    }
+   },
+   {
+    "t": "09:20:02.772",
+    "what": "feed",
+    "detail": "closed (None, None)"
+   },
+   {
+    "t": "09:20:02.845",
+    "what": "feed_stats",
+    "detail": {
+     "messages": 7848
+    }
+   }
+  ]
  }
 ]
