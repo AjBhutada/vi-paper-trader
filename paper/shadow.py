@@ -51,6 +51,37 @@ def walk(levels, qty):
     return round((cost + left * (levels[-1][0] + vb.tick_size(levels[-1][0]))) / qty, 4)
 
 
+def walk_sell(levels, qty):
+    """Average price for SELLING `qty` into the visible (price, qty) bid levels; beyond them, one price step lower."""
+    left, got = qty, 0.0
+    for p, q in levels or []:
+        if not p:
+            continue
+        take = min(left, q); got += take * p; left -= take
+        if left <= 0:
+            return round(got / qty, 4)
+    if not levels:
+        return None
+    return round((got + left * (levels[-1][0] - vb.tick_size(levels[-1][0]))) / qty, 4)
+
+
+def open_sell(feed, key, qty, t915):
+    """What a pre-open MARKET SELL really gets. If the instrument traded in the pre-open auction (a trade stamped between
+    09:00 and 09:15), the auction price. If it did NOT (no buyer and seller crossed - it happens in stock futures), the
+    order is still open at 09:15:00 and sells into the best bids of the first quote after 09:15 (the feed's 'open' field
+    then only repeats the old indicative price, which is not a real trade). Returns (price, how, auction_traded)."""
+    a = feed.auction_of(key)
+    if a:
+        return a[0], f"auction price (traded in the pre-open auction at {datetime.fromtimestamp(a[1] / 1000, vb.IST):%H:%M:%S})", True
+    s = feed.first_of(key) or feed.get(key)
+    px = walk_sell(s.get("bid"), qty)
+    lt = f"{datetime.fromtimestamp(s['ltt'] / 1000, vb.IST):%d %b %H:%M}" if s.get("ltt") else "none"
+    if px is None:
+        return s.get("ltp"), f"no auction trade and no bids in the feed; last price {s.get('ltp')} (last trade {lt})", False
+    return px, (f"NO trade in the pre-open auction (last trade {lt}), so the market sell fills at 09:15:00 against the best bids "
+                f"{(s.get('bid') or [])[:3]}"), False
+
+
 def c_setup(bot, day, log):
     """Before 09:00: for each Plan C stock (priority order) yesterday's last price, the 2% limit (on the price step)
     and the usual opening-minute traded value (the size cap). [] before Plan C's start date."""
@@ -193,6 +224,8 @@ class Feed:
         self.low = {}                                       # lowest traded price per key since reset_low()
         self.iep = {}                                       # key -> (indicative auction price, its quantity, receive time)
         self.preopen = None                                 # NSE_EQ pre-open status from 'market_info' messages
+        self.win = None                                     # (09:00, 09:15) in ms: a trade stamped inside = auction trade
+        self.auction, self.first = {}, {}                   # key -> (auction price, trade time ms); key -> first quote after 09:15
         self.lock = threading.Lock()
         cfg = upstox_client.Configuration()
         cfg.access_token = os.environ["UPSTOX_ACCESS_TOKEN"]
@@ -230,14 +263,33 @@ class Feed:
                 iep = mff.get("iep") or lt.get("iep")              # only sent during the pre-open / closing auctions
                 if iep:
                     self.iep[k] = (iep, mff.get("ieq"), now)
-                self.snap[k] = {"rx": now, "ltp": lt.get("ltp"), "cp": lt.get("cp"), "iep": iep, "ieq": mff.get("ieq"),
+                ltt = int(lt.get("ltt") or 0) or None
+                if self.win and ltt and self.win[0] <= ltt < self.win[1] and lt.get("ltp"):
+                    self.auction[k] = (lt["ltp"], ltt)
+                self.snap[k] = {"rx": now, "ltp": lt.get("ltp"), "ltt": ltt, "cp": lt.get("cp"), "iep": iep, "ieq": mff.get("ieq"),
                                 "bid": [(x.get("bidP"), int(x.get("bidQ", 0) or 0)) for x in q if x.get("bidP")],
                                 "ask": [(x.get("askP"), int(x.get("askQ", 0) or 0)) for x in q if x.get("askP")],
                                 "open": ohlc[0].get("open") if ohlc else None, "vtt": mff.get("vtt")}
+                if self.win and now * 1000 >= self.win[1] and k not in self.first:
+                    self.first[k] = dict(self.snap[k])
                 ltp = self.snap[k]["ltp"]
                 if ltp and k in self.low:
                     self.low[k] = min(self.low[k], ltp)
                 self.n += 1
+
+    def set_auction_window(self, t900, t915):
+        with self.lock:
+            self.win = (t900 * 1000, t915 * 1000)
+
+    def auction_of(self, k):
+        """(price, trade time ms) of the instrument's pre-open auction trade today, or None if it had none."""
+        with self.lock:
+            return self.auction.get(k)
+
+    def first_of(self, k):
+        """The first quote received at/after 09:15:00 (what a resting market order meets), or None."""
+        with self.lock:
+            return dict(self.first[k]) if k in self.first else None
 
     def reset_low(self, k):
         with self.lock:
@@ -403,7 +455,7 @@ def main():
                            "stocks": [{x: r[x] for x in ("sym", "prev", "limit", "open_value")} for r in crows]})
         ckeys = {r["key"] for r in crows}
         cname = {r["key"]: r["sym"] for r in crows}
-        feed = Feed(keys | ckeys, log); feed.start()
+        feed = Feed(keys | ckeys, log); feed.set_auction_window(clock.real_ts("09:00:00"), clock.real_ts("09:15:00")); feed.start()
         clock.wait_until("09:00:05")
         snaps = {k: feed.get(k) for k in keys}
         log("preopen_snapshot", snaps)
@@ -426,18 +478,21 @@ def main():
                 for r in chosen:
                     r["oid"] = orders.place(f"C-{r['sym']}-short", r["key"], "SELL", r["qty"], "LIMIT", "I", r["limit"])
         clock.wait_until("09:15:01")
-        o = None
-        for _ in range(40):                       # up to ~20 s for the first post-auction snapshot
-            s = feed.get(EQ)
-            o = s.get("open") or None
-            if o:
+        t915 = clock.real_ts("09:15:00")
+        watch = [EQ] + ([pos["key"]] if pos else [])
+        for _ in range(40):                       # up to ~20 s for the first quote after 09:15 (by then any auction trade is known)
+            if all(feed.auction_of(k) or feed.first_of(k) for k in watch):
                 break
             time.sleep(0.5)
-        fs = feed.get(pos["key"]) if pos else {}
-        log("auction", {"VI_open": o, "B_limit": limit, "B_filled": bool(o and o >= limit),
-                        "A_future_open": fs.get("open")})
+        a_vi = feed.auction_of(EQ)
+        o = a_vi[0] if a_vi else None             # only a real auction trade counts (the 'open' field can be a stale indicative)
+        a_px = a_how = a_traded = None
         if pos:
-            log("fill", {"leg": "A-sell", "price": fs.get("open"), "qty": pos["qty"], "symbol": pos["symbol"], "bought_on": pos["date"]})
+            a_px, a_how, a_traded = open_sell(feed, pos["key"], pos["qty"], t915)
+        log("auction", {"VI_open": o, "VI_auction_traded": bool(a_vi), "B_limit": limit, "B_filled": bool(o and o >= limit),
+                        "A_future_sold": a_px, "A_future_auction_traded": a_traded, "A_feed_open_field": feed.get(pos["key"]).get("open") if pos else None})
+        if pos:
+            log("fill", {"leg": "A-sell", "price": a_px, "qty": pos["qty"], "symbol": pos["symbol"], "bought_on": pos["date"], "how": a_how})
         b_filled = bool(o and o >= limit)
         if b_filled:
             log("fill", {"leg": "B-short", "price": o, "qty": qty_b, "limit": limit, "prev_last": last})
@@ -445,8 +500,7 @@ def main():
             log("fill", {"leg": "B-none", "open": o, "limit": limit})
             orders.cancel("B-limit-short", b_id)
         # ---- Plan C at the auction: each picked stock is shorted at its auction price if that reached the limit
-        t915 = clock.real_ts("09:15:00")
-        live_open = lambda k: feed.get(k).get("open") if (feed.get(k).get("rx") or 0) >= t915 else None
+        live_open = lambda k: (feed.auction_of(k) or (None,))[0]          # a real pre-open auction trade, nothing else
         while chosen and clock.now().strftime("%H:%M:%S") < "09:15:45" and not all(live_open(r["key"]) for r in chosen):
             time.sleep(0.5)
         late, held, lock = [], [], threading.Lock()
@@ -470,6 +524,11 @@ def main():
         if late:
             clock.wait_until("09:16:05")           # the 09:15 one-minute candle is complete by then
         for r in late:
+            if feed.first_of(r["key"]) and not feed.auction_of(r["key"]):     # quoted after 09:15 but never traded in the auction
+                log("fill", {"leg": f"C-none-{r['sym']}", "sym": r["sym"], "open": None, "limit": r["limit"], "iep_at_pick": r["iep"],
+                             "source": "no trade in the pre-open auction, so no auction fill"})
+                orders.cancel(f"C-{r['sym']}-short", r.get("oid"))
+                continue
             cs = vb.candles(r["key"], day)
             r["auction"] = cs["09:15"][0] if "09:15" in cs else None
             if r["auction"]:
@@ -629,7 +688,8 @@ def summarize(js):
         fills = {det(e).get("leg"): det(e) for e in get("fill")}
         a = det(get("auction")[0]) if get("auction") else {}
         if "A-sell" in fills:
-            lines.append(f"09:15 auction: overnight futures sold at ₹{fills['A-sell'].get('price')}.")
+            lines.append(f"09:15: overnight futures sold at ₹{fills['A-sell'].get('price')}"
+                         + (f" — {fills['A-sell']['how']}." if fills["A-sell"].get("how") else "."))
         if a:
             reached = a.get("B_filled")
             lines.append(f"09:15 auction: VI opened at ₹{a.get('VI_open')} — the ₹{a.get('B_limit'):.2f} limit was "

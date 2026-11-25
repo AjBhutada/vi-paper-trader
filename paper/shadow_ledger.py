@@ -2,7 +2,7 @@
 with the paper bot's trades (state/trades.csv). Used by vi_bot.report() for the combined dashboard.
 
 Shadow price for each leg = what a real order would have got at that instant, from the LIVE feed:
-  A-buy  : best asks at 15:25:00 walked for the quantity      A-sell : futures auction (opening) price
+  A-buy  : best asks at 15:25:00 walked for the quantity      A-sell : futures auction price; if the future had no auction trade, the best bids at 09:15:00
   B-short: VI auction (opening) price, if >= the limit         B-cover: best asks at 09:16:00 walked
   C-short-SYM: the stock's auction price, if picked at 09:06:30 and >= its limit   C-cover-SYM: best asks at 09:20:00 walked
 Quantities for A and B are the paper bot's, so any difference between paper and shadow is execution only (price,
