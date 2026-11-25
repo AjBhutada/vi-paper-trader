@@ -1,0 +1,80 @@
+{
+ "plans": {
+  "A": {
+   "start": 500000,
+   "now": 499470,
+   "pnl": -530,
+   "ret_pct": -0.11,
+   "trades": 1,
+   "wins": 0,
+   "vs_paper_rs": null,
+   "missed": 0
+  },
+  "B": {
+   "start": 500000,
+   "now": 500000,
+   "pnl": 0,
+   "ret_pct": 0.0,
+   "trades": 0,
+   "wins": 0,
+   "vs_paper_rs": null,
+   "missed": 0
+  },
+  "C": {
+   "start": 500000,
+   "now": 506307,
+   "pnl": 6307,
+   "ret_pct": 1.26,
+   "trades": 1,
+   "wins": 1,
+   "vs_paper_rs": null,
+   "missed": 0,
+   "stocks_traded": [
+    "POLICYBZR"
+   ]
+  }
+ },
+ "start_c": "2026-11-25",
+ "combined": {
+  "now": 1505777,
+  "pnl": 5777,
+  "ret_pct": 0.39
+ },
+ "compare": [
+  {
+   "plan": "A",
+   "date": "2026-11-23",
+   "exit_date": "2026-11-25",
+   "qty": 71475,
+   "instrument": "IDEA FUT 29 DEC 26",
+   "shadow_entry": 12.01,
+   "shadow_exit": 12.01,
+   "orders": "buy: logged only 15:25:00 (no sandbox token); sell: sent 09:00:06 (1320 ms) ✓",
+   "shadow_net": -530,
+   "paper_entry": 12.01,
+   "paper_qty": 71475,
+   "entry_gap_paise": 0.0
+  },
+  {
+   "plan": "C",
+   "date": "2026-11-25",
+   "exit_date": "2026-11-25",
+   "qty": 900,
+   "instrument": "POLICYBZR shares (MIS)",
+   "shadow_entry": 1153.0,
+   "shadow_exit": 1145.5342,
+   "orders": "POLICYBZR short: sent 09:06:30 (247 ms) ✓; cover: sent 09:20:00 (636 ms) ✓; the paper bot has not booked this morning yet",
+   "shadow_net": 6307
+  }
+ ],
+ "curve": [
+  {
+   "date": "2026-11-25",
+   "A": 499470,
+   "B": 500000,
+   "C": 506307
+  }
+ ],
+ "open": null,
+ "built": "2026-11-25 09:26"
+}

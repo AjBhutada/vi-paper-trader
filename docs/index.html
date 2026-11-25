@@ -62,8 +62,14 @@ const inr = v => (v < 0 ? "−" : "") + "₹" + Math.abs(Math.round(v)).toLocale
 const sgn = v => (v > 0 ? "+" : v < 0 ? "−" : "") + "₹" + Math.abs(Math.round(v)).toLocaleString("en-IN");
 const cls = v => v > 0 ? "pos" : v < 0 ? "neg" : "";
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-fetch("data/dashboard.json?" + Date.now()).then(r => r.json()).then(d => {
-  document.getElementById("sub").textContent = `Started ${d.start_date} (Plan C from ${d.start_c || "25 Nov"}) · last update ${d.updated} · ₹5 lakh per plan, compounding`;
+Promise.all([fetch("data/dashboard.json?" + Date.now()).then(r => r.json()),
+             fetch("data/live.json?" + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null)]).then(([d, lv]) => {
+  // live.json is written by the shadow bot right after each session; dashboard.json's copy only when the paper bot books
+  if (lv && lv.plans && !(d.shadow && d.shadow.built && d.shadow.built >= lv.built)) d.shadow = lv;
+  const lt = d.shadow && d.shadow.built;
+  document.getElementById("sub").textContent = `Started ${d.start_date} (Plan C from ${d.start_c || "25 Nov"}) · paper bot updated ${d.updated}` +
+    (lt ? ` · live bot updated ${new Date(lt.replace(" ", "T")).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false })} IST` : "") +
+    ` · ₹5 lakh per plan, compounding`;
   const card = (title, x, extra) => `<div class="card"><h2>${title}</h2>
     <div class="big ${cls(x.pnl)}">${inr(x.now)}</div>
     <div class="kv"><span>P&amp;L</span><b class="${cls(x.pnl)}">${sgn(x.pnl)} (${x.ret_pct >= 0 ? "+" : ""}${x.ret_pct}%)</b>${extra || ""}</div></div>`;
@@ -91,20 +97,24 @@ fetch("data/dashboard.json?" + Date.now()).then(r => r.json()).then(d => {
     document.getElementById("scards").innerHTML = `<div class="card">Shadow results appear after the first live session is booked${sh.error ? " (" + sh.error + ")" : ""}.</div>`;
   }
   const days = d.days || [];
-  const lab = [d.start_date + " start"].concat(days.map(x => x.date));
-  const s0 = d.plans.A.start, s1 = d.plans.B.start, s2 = C ? C.start : 0;
   const curve = (sh.curve || []);
+  const lastPaper = days.length ? days[days.length - 1].date : "";
+  const extra = [...new Set(curve.map(c => c.date))].filter(x => x > lastPaper).sort();   // live days the paper bot has not booked yet
+  const dts = days.map(x => x.date).concat(extra);
+  const pad = a => a.concat(extra.map(() => null));
+  const lab = [d.start_date + " start"].concat(dts);
+  const s0 = d.plans.A.start, s1 = d.plans.B.start, s2 = C ? C.start : 0;
   const live = k => { let v = k === "A" ? s0 : k === "B" ? s1 : s2; const m = Object.fromEntries(curve.map(c => [c.date, c[k]]));
-    return [v].concat(days.map(x => (m[x.date] != null ? (v = m[x.date]) : v))); };
+    return [v].concat(dts.map(x => (m[x] != null ? (v = m[x]) : v))); };
   new Chart(document.getElementById("eq"), { type: "line",
     data: { labels: lab, datasets: [
-      { label: "A overnight", data: [s0].concat(days.map(x => +x.equity_A)), borderColor: css("--a"), pointRadius: 0, tension: .1 },
+      { label: "A overnight", data: [s0].concat(pad(days.map(x => +x.equity_A))), borderColor: css("--a"), pointRadius: 0, tension: .1 },
       { label: "A live shadow", data: live("A"), borderColor: css("--a"), borderDash: [6, 4], pointRadius: 0, tension: .1 },
-      { label: "B gap-up short", data: [s1].concat(days.map(x => +x.equity_B)), borderColor: css("--b"), pointRadius: 0, tension: .1 },
+      { label: "B gap-up short", data: [s1].concat(pad(days.map(x => +x.equity_B))), borderColor: css("--b"), pointRadius: 0, tension: .1 },
       { label: "B live shadow", data: live("B"), borderColor: css("--b"), borderDash: [6, 4], pointRadius: 0, tension: .1 },
-      ...(C ? [{ label: "C gap-up basket", data: [s2].concat(days.map(x => +(x.equity_C ?? s2))), borderColor: css("--c"), pointRadius: 0, tension: .1 }] : []),
+      ...(C ? [{ label: "C gap-up basket", data: [s2].concat(pad(days.map(x => +(x.equity_C ?? s2)))), borderColor: css("--c"), pointRadius: 0, tension: .1 }] : []),
       ...(C && shC ? [{ label: "C live shadow", data: live("C"), borderColor: css("--c"), borderDash: [6, 4], pointRadius: 0, tension: .1 }] : []),
-      { label: C ? "All three (paper)" : "Both (paper)", data: [s0 + s1 + s2].concat(days.map(x => +x.total)), borderColor: css("--t"), pointRadius: 0, tension: .1, yAxisID: "y2" } ] },
+      { label: C ? "All three (paper)" : "Both (paper)", data: [s0 + s1 + s2].concat(pad(days.map(x => +x.total))), borderColor: css("--t"), pointRadius: 0, tension: .1, yAxisID: "y2" } ] },
     options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
       plugins: { legend: { labels: { color: css("--ink") } }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${inr(c.parsed.y)}` } } },
       scales: { x: { ticks: { color: css("--muted"), maxTicksLimit: 8 }, grid: { color: css("--line") } },

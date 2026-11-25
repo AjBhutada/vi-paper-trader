@@ -66,9 +66,11 @@ jobs:
           ok=0
           for i in 1 2 3 4; do
             git checkout -q -- docs/data/shadow.json 2>/dev/null || true
+            git checkout -q -- docs/data/live.json 2>/dev/null || true
             git pull -q --rebase || { git rebase --abort 2>/dev/null; sleep 10; continue; }
             python paper/shadow.py summary
             git add docs/data/shadow.json
+            [ -f docs/data/live.json ] && git add docs/data/live.json
             if git commit -q -m "VI shadow bot: session log summary"; then summ=1; else summ=0; fi
             git push -q && { ok=1; break; }
             [ "$summ" = 1 ] && git reset -q --hard HEAD~1

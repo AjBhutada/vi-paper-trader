@@ -649,6 +649,17 @@ def write_summary():
             rows.append({"day": g.stem[:10], "session": g.stem[11:], "result": "Could not summarise", "lines": [str(e)[:200]], "raw": []})
     (ROOT / "docs" / "data").mkdir(parents=True, exist_ok=True)
     (ROOT / "docs" / "data" / "shadow.json").write_text(json.dumps(rows, indent=1, default=str, ensure_ascii=False), encoding="utf-8")
+    # the live cards, straight after each session: docs/data/live.json. The paper bot puts its own copy in dashboard.json
+    # when it books (12:40 / 16:05); the page shows whichever is newer. One writer per file, so the two bots never clash.
+    try:
+        import shadow_ledger
+        meta_f = ROOT / "state" / "meta.json"
+        m = json.loads(meta_f.read_text()) if meta_f.exists() else {}
+        led = shadow_ledger.build(m.get("open"), m.get("last_c"))
+        led["built"] = datetime.now(IST).strftime("%Y-%m-%d %H:%M")
+        (ROOT / "docs" / "data" / "live.json").write_text(json.dumps(led, indent=1, default=str, ensure_ascii=False), encoding="utf-8")
+    except Exception as e:
+        print("live results not built:", e)
     # the shadow bot only READS the paper accounts; it never saves state/meta.json (the paper bot owns it)
 
 

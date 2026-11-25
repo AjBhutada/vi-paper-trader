@@ -23,6 +23,8 @@ def _sessions():
         js = json.loads(f.read_text())
         if js["part"] not in ("morning", "afternoon"):
             continue
+        if any(e.get("what") == "skip" and "not a trading day" in str(e.get("detail")) for e in js["events"]):
+            continue                             # holiday: no session, so it must not stand in for the next real morning
         out[(js["day"], js["part"])] = js["events"]
     return out
 

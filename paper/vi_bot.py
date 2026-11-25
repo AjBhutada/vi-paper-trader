@@ -697,6 +697,7 @@ def report(st, now):
         sys.path.insert(0, str(ROOT / "paper"))
         import shadow_ledger
         dash["shadow"] = shadow_ledger.build(m.get("open"), m.get("last_c"))
+        dash["shadow"]["built"] = now.strftime("%Y-%m-%d %H:%M")
     except Exception as e:
         log("shadow ledger not built:", e)
         dash["shadow"] = {"error": str(e)[:200]}
