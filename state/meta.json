@@ -1,25 +1,15 @@
 {
  "start_date": "2026-11-23",
  "equity": {
-  "A": 503755.92405914806,
+  "A": 506807.9301130906,
   "B": 500000,
   "C": 507420.4473003866
  },
- "last_morning": "2026-11-25",
+ "last_morning": "2026-11-26",
  "last_evening": "2026-11-25",
- "open": {
-  "date": "2026-11-25",
-  "key": "NSE_FO|58992",
-  "symbol": "IDEA FUT 29 DEC 26",
-  "lot": 71475,
-  "lots": 1,
-  "qty": 71475,
-  "entry": 11.75,
-  "entry_time": "15:25:00",
-  "how": "limit 11.74 not filled by 15:25; market: tick best ask at 15:25:00 (ask 11.75 x 2,215,725)"
- },
+ "open": null,
  "alerted": {},
- "last_run": "2026-11-25T18:05+05:30",
+ "last_run": "2026-11-26T12:40+05:30",
  "holidays": {
   "fetched": "2026-11-23",
   "days": [
@@ -67,10 +57,10 @@
    "lot": 36125
   }
  },
- "contracts_fetched": "2026-11-25",
- "_gap": 0.42,
+ "contracts_fetched": "2026-11-26",
+ "_gap": 0.34,
  "_btrade": false,
- "last_c": "2026-11-25",
+ "last_c": "2026-11-26",
  "start_c": "2026-11-25",
  "eq_keys": {
   "VMM": "NSE_EQ|INE01EA01019",
@@ -87,5 +77,5 @@
   "BLUESTARCO": "NSE_EQ|INE472A01039",
   "VBL": "NSE_EQ|INE200M01039"
  },
- "_c_trades": 1
+ "_c_trades": 0
 }

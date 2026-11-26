@@ -1,21 +1,21 @@
 {
- "updated": "25 Nov 2026 18:05 IST",
+ "updated": "26 Nov 2026 12:40 IST",
  "start_date": "2026-11-23",
  "start_c": "2026-11-25",
  "plans": {
   "A": {
    "start": 500000,
-   "now": 503756,
-   "pnl": 3756,
-   "ret_pct": 0.75,
-   "trades": 1,
-   "wins": 1,
+   "now": 506808,
+   "pnl": 6808,
+   "ret_pct": 1.36,
+   "trades": 2,
+   "wins": 2,
    "win_pct": 100.0,
-   "avg_net_rs": 3756,
-   "avg_net_bps": 43.8,
+   "avg_net_rs": 3404,
+   "avg_net_bps": 40.0,
    "median_net_bps": 43.8,
    "best_rs": 3756,
-   "worst_rs": 3756,
+   "worst_rs": 3052,
    "max_dip_pct": 0.0
   },
   "B": {
@@ -54,9 +54,9 @@
  },
  "combined": {
   "start": 1500000,
-  "now": 1511176,
-  "pnl": 11176,
-  "ret_pct": 0.75
+  "now": 1514228,
+  "pnl": 14228,
+  "ret_pct": 0.95
  },
  "plan_c": {
   "stocks": [
@@ -75,19 +75,9 @@
    "GODFRYPHLP"
   ],
   "rerank_due": "2027-05-25",
-  "last_c": "2026-11-25"
+  "last_c": "2026-11-26"
  },
- "open": {
-  "date": "2026-11-25",
-  "key": "NSE_FO|58992",
-  "symbol": "IDEA FUT 29 DEC 26",
-  "lot": 71475,
-  "lots": 1,
-  "qty": 71475,
-  "entry": 11.75,
-  "entry_time": "15:25:00",
-  "how": "limit 11.74 not filled by 15:25; market: tick best ask at 15:25:00 (ask 11.75 x 2,215,725)"
- },
+ "open": null,
  "days": [
   {
    "date": "2026-11-23",
@@ -152,6 +142,24 @@
    "net_bps": "74.2",
    "equity_after": "507420",
    "note": "priority 4 of 13; gap +5.87% (prev 1089.1; limit 1110.90; auction 1153.0); size: 2x the account (2:2:1 rule); covered: tick best ask at 09:20:00 (ask 1143.7 x 38); 10 beyond the visible depth priced one step (0.1) worse"
+  },
+  {
+   "plan": "A overnight",
+   "date": "2026-11-25",
+   "instrument": "IDEA FUT 29 DEC 26",
+   "side": "long",
+   "qty": "71475",
+   "entry_time": "15:25:00",
+   "entry": "11.75",
+   "exit_date": "2026-11-26",
+   "exit_time": "09:15",
+   "exit": "11.8",
+   "gross_rs": "3574",
+   "charges_rs": "522",
+   "net_rs": "3052",
+   "net_bps": "36.3",
+   "equity_after": "506808",
+   "note": "bought: limit 11.74 not filled by 15:25; market: tick best ask at 15:25:00 (ask 11.75 x 2;215;725); sold: auction open"
   }
  ],
  "reference": {
@@ -166,7 +174,7 @@
   "planc_5yr_compound_pct_per_year": 61.5,
   "_planc_note": "Plan C with the 2:2:1 rule: a fresh Rs 5 lakh in Jan-Nov 2026 with the last-12-months order -> +53%; about 5 trades a month; compounding from Jan 2022 about 61.5% a year (Rs 5 lakh -> Rs 51.9 lakh). The % is lower as the pot grows: each stock only takes so much money at the open. These use the final auction prices to choose stocks; the live bot must choose at 09:06:30."
  },
- "last_gap_pct": 0.42,
+ "last_gap_pct": 0.34,
  "rules": {
   "start_date": "2026-11-23",
   "underlying": "IDEA",
@@ -254,12 +262,12 @@
   "plans": {
    "A": {
     "start": 500000,
-    "now": 499470,
-    "pnl": -530,
-    "ret_pct": -0.11,
-    "trades": 1,
+    "now": 498236,
+    "pnl": -1764,
+    "ret_pct": -0.35,
+    "trades": 2,
     "wins": 0,
-    "vs_paper_rs": -4286,
+    "vs_paper_rs": -8572,
     "missed": 0
    },
    "B": {
@@ -288,9 +296,9 @@
   },
   "start_c": "2026-11-25",
   "combined": {
-   "now": 1505777,
-   "pnl": 5777,
-   "ret_pct": 0.39
+   "now": 1504543,
+   "pnl": 4543,
+   "ret_pct": 0.3
   },
   "compare": [
    {
@@ -299,10 +307,17 @@
     "exit_date": "2026-11-25",
     "qty": 71475,
     "instrument": "IDEA FUT 29 DEC 26",
+    "side": "long",
+    "entry_time": "15:25",
+    "exit_time": "09:15",
+    "entry_how": null,
+    "exit_how": null,
     "shadow_entry": 12.01,
     "shadow_exit": 12.01,
     "orders": "buy: logged only 15:25:00 (no sandbox token); sell: sent 09:00:06 (1320 ms) \u2713",
     "shadow_net": -530,
+    "shadow_gross": 0,
+    "shadow_charges": 530,
     "paper_entry": 12.01,
     "paper_exit": 12.07,
     "paper_net": 3756.0,
@@ -314,15 +329,27 @@
    {
     "plan": "A",
     "date": "2026-11-25",
-    "exit_date": "",
+    "exit_date": "2026-11-26",
     "qty": 71475,
-    "instrument": null,
+    "instrument": "IDEA FUT 29 DEC 26",
+    "side": "long",
+    "entry_time": "15:25",
+    "exit_time": "09:15",
+    "entry_how": "limit 11.74 not filled by 15:25; market buy at the best ask",
+    "exit_how": "NO trade in the pre-open auction (last trade 25 Nov 15:39), so the market sell fills at 09:15:00 against the best bids [(11.74, 71475), (11.72, 285900), (11.71, 71475)]",
     "shadow_entry": 11.75,
-    "shadow_exit": null,
-    "orders": "buy: sent 15:20:00 (881 ms) \u2713 \u2192 cancelled 15:25:00 \u2192 sent 15:25:00 (252 ms) \u2713",
+    "shadow_exit": 11.74,
+    "orders": "buy: sent 15:20:00 (881 ms) \u2713 \u2192 cancelled 15:25:00 \u2192 sent 15:25:00 (252 ms) \u2713; sell: sent 09:00:05 (328 ms) \u2713",
+    "shadow_net": -1234,
+    "shadow_gross": -715,
+    "shadow_charges": 519,
     "paper_entry": 11.75,
+    "paper_exit": 11.8,
+    "paper_net": 3052.0,
     "paper_qty": 71475,
-    "entry_gap_paise": 0.0
+    "diff_rs": -4286,
+    "entry_gap_paise": 0.0,
+    "exit_gap_paise": -6.0
    },
    {
     "plan": "C",
@@ -330,10 +357,16 @@
     "exit_date": "2026-11-25",
     "qty": 900,
     "instrument": "POLICYBZR shares (MIS)",
+    "side": "short",
+    "entry_time": "09:15",
+    "exit_time": "09:20",
+    "exit_how": "market buy at the best asks at 09:20:00",
     "shadow_entry": 1153.0,
     "shadow_exit": 1145.5342,
     "orders": "POLICYBZR short: sent 09:06:30 (247 ms) \u2713; cover: sent 09:20:00 (636 ms) \u2713",
     "shadow_net": 6307,
+    "shadow_gross": 6719,
+    "shadow_charges": 412,
     "paper_entry": 1153.0,
     "paper_exit": 1143.9814,
     "paper_net": 7420.0,
@@ -349,14 +382,15 @@
     "A": 499470,
     "B": 500000,
     "C": 506307
+   },
+   {
+    "date": "2026-11-26",
+    "A": 498236,
+    "B": 500000,
+    "C": 506307
    }
   ],
-  "open": {
-   "date": "2026-11-25",
-   "qty": 71475,
-   "instrument": null,
-   "entry": 11.75
-  },
-  "built": "2026-11-25 18:05"
+  "open": null,
+  "built": "2026-11-26 12:40"
  }
 }
