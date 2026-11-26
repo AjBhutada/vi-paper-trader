@@ -7,7 +7,7 @@
    "ret_pct": -0.35,
    "trades": 2,
    "wins": 0,
-   "vs_paper_rs": -4286,
+   "vs_paper_rs": -8572,
    "missed": 0
   },
   "B": {
@@ -84,8 +84,12 @@
    "shadow_gross": -715,
    "shadow_charges": 519,
    "paper_entry": 11.75,
+   "paper_exit": 11.8,
+   "paper_net": 3052.0,
    "paper_qty": 71475,
-   "entry_gap_paise": 0.0
+   "diff_rs": -4286,
+   "entry_gap_paise": 0.0,
+   "exit_gap_paise": -6.0
   },
   {
    "plan": "C",
@@ -110,6 +114,21 @@
    "diff_rs": -1113,
    "entry_gap_paise": 0.0,
    "exit_gap_paise": 155.28
+  },
+  {
+   "plan": "A",
+   "date": "2026-11-26",
+   "exit_date": "",
+   "qty": 71475,
+   "instrument": "IDEA FUT 29 DEC 26",
+   "side": "long",
+   "entry_time": "15:25",
+   "exit_time": null,
+   "entry_how": "limit 11.66 not filled by 15:25; market buy at the best ask",
+   "exit_how": null,
+   "shadow_entry": 11.67,
+   "shadow_exit": null,
+   "orders": "buy: sent 15:20:00 (296 ms) ✓ → cancelled 15:25:00 → sent 15:25:01 (247 ms) ✓"
   }
  ],
  "curve": [
@@ -126,6 +145,14 @@
    "C": 506307
   }
  ],
- "open": null,
- "built": "2026-11-26 09:39"
+ "open": {
+  "date": "2026-11-26",
+  "qty": 71475,
+  "instrument": "IDEA FUT 29 DEC 26",
+  "entry": 11.67,
+  "entry_time": "15:25",
+  "side": "long",
+  "plan": "A"
+ },
+ "built": "2026-11-26 15:25"
 }
