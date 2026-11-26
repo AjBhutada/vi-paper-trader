@@ -79,6 +79,13 @@ def _fills(events):
     return f
 
 
+def _money(r, gross, charges):
+    """Gross P&L, charges and net P&L of a closed shadow trade (net is what the accounts use)."""
+    r["shadow_net"] = round(gross - charges)
+    r["shadow_gross"] = round(gross)
+    r["shadow_charges"] = r["shadow_gross"] - r["shadow_net"]          # so gross - charges = net exactly on screen
+
+
 def build(paper_open=None, last_c=None):
     """paper_open = the paper bot's open overnight position (state/meta.json 'open'), shown before it is closed.
     last_c = the last morning the paper bot has booked for Plan C (state/meta.json 'last_c')."""
@@ -104,12 +111,17 @@ def build(paper_open=None, last_c=None):
                 sell = _fills(ev2).get("A-sell"); sell_day = d2; sell_orders = _orders(ev2)
                 break
         p = pA.get(d)
-        r = {"plan": "A", "date": d, "exit_date": sell_day or "", "qty": fb["qty"], "instrument": fb.get("symbol"),
+        contract = next((e["detail"].get("contract") for e in ev if e["what"] == "plan" and isinstance(e.get("detail"), dict)
+                         and e["detail"].get("contract")), None)
+        r = {"plan": "A", "date": d, "exit_date": sell_day or "", "qty": fb["qty"],
+             "instrument": fb.get("symbol") or (sell or {}).get("symbol") or contract, "side": "long",
+             "entry_time": fb["t"][:5], "exit_time": sell["t"][:5] if sell else None,
+             "entry_how": fb.get("how"), "exit_how": (sell or {}).get("how"),
              "shadow_entry": fb["price"], "shadow_exit": sell["price"] if sell else None,
              "orders": "; ".join(x for x in (f"buy: {_leg(_orders(ev), 'A-buy')}", f"sell: {sell_orders.get('A-sell', '-')}" if sell_day else "") if x)}
         if sell and sell["price"] and fb["price"]:
             q = fb["qty"]
-            r["shadow_net"] = round((sell["price"] - fb["price"]) * q - vb.charges("fut", "buy", fb["price"] * q) - vb.charges("fut", "sell", sell["price"] * q))
+            _money(r, (sell["price"] - fb["price"]) * q, vb.charges("fut", "buy", fb["price"] * q) + vb.charges("fut", "sell", sell["price"] * q))
         if not p and paper_open and paper_open.get("date") == d:
             r.update(paper_entry=float(paper_open["entry"]), paper_qty=int(paper_open["qty"]))
         if p:
@@ -127,12 +139,13 @@ def build(paper_open=None, last_c=None):
         if "B-short" not in f:
             continue
         s, c = f["B-short"], f.get("B-cover")
-        r = {"plan": "B", "date": d, "exit_date": d, "qty": s["qty"], "instrument": "IDEA shares (MIS)",
+        r = {"plan": "B", "date": d, "exit_date": d, "qty": s["qty"], "instrument": "IDEA shares (MIS)", "side": "short",
+             "entry_time": s["t"][:5], "exit_time": c["t"][:5] if c else None, "exit_how": (c or {}).get("how"),
              "shadow_entry": s["price"], "shadow_exit": c["price"] if c else None,
              "orders": f"short: {_orders(ev).get('B-limit-short', '-')}; cover: {_leg(_orders(ev), 'B-cover')}"}
         if c and c["price"]:
             q = s["qty"]
-            r["shadow_net"] = round((s["price"] - c["price"]) * q - vb.charges("cash", "sell", s["price"] * q) - vb.charges("cash", "buy", c["price"] * q))
+            _money(r, (s["price"] - c["price"]) * q, vb.charges("cash", "sell", s["price"] * q) + vb.charges("cash", "buy", c["price"] * q))
         p = pB.get(d)
         if p:
             r.update(paper_entry=float(p["entry"]), paper_exit=float(p["exit"]), paper_net=float(p["net_rs"]), paper_qty=int(p["qty"]))
@@ -161,12 +174,13 @@ def build(paper_open=None, last_c=None):
             if not leg.startswith("C-short-"):
                 continue
             sym = s["sym"]; c = f.get(f"C-cover-{sym}")
-            r = {"plan": "C", "date": d, "exit_date": d, "qty": s["qty"], "instrument": f"{sym} shares (MIS)",
+            r = {"plan": "C", "date": d, "exit_date": d, "qty": s["qty"], "instrument": f"{sym} shares (MIS)", "side": "short",
+                 "entry_time": s["t"][:5], "exit_time": c["t"][:5] if c else None, "exit_how": (c or {}).get("how"),
                  "shadow_entry": s["price"], "shadow_exit": c["price"] if c else None,
                  "orders": f"{sym} short: {st.get(f'C-{sym}-short', '-')}; cover: {_c_cover_text(st, sym, c)}"}
             if c and c["price"]:
                 q = s["qty"]
-                r["shadow_net"] = round((s["price"] - c["price"]) * q - vb.charges("cash", "sell", s["price"] * q) - vb.charges("cash", "buy", c["price"] * q))
+                _money(r, (s["price"] - c["price"]) * q, vb.charges("cash", "sell", s["price"] * q) + vb.charges("cash", "buy", c["price"] * q))
             p = pC.get((d, sym))
             if p:
                 r.update(paper_entry=float(p["entry"]), paper_exit=float(p["exit"]), paper_net=float(p["net_rs"]), paper_qty=int(p["qty"]))
@@ -218,5 +232,6 @@ def build(paper_open=None, last_c=None):
     return {"plans": {"A": A, "B": B, "C": C}, "start_c": vb.C_["start_date"],
             "combined": {"now": tot, "pnl": tot - tot0, "ret_pct": round(tot / tot0 * 100 - 100, 2)},
             "compare": rows[-100:], "curve": curve,
-            "open": next(({"date": r["date"], "qty": r["qty"], "instrument": r["instrument"], "entry": r["shadow_entry"]}
+            "open": next(({"date": r["date"], "qty": r["qty"], "instrument": r["instrument"], "entry": r["shadow_entry"],
+                           "entry_time": r.get("entry_time"), "side": r.get("side"), "plan": r["plan"]}
                           for r in rows if r["plan"] == "A" and r.get("shadow_exit") is None and not r.get("missed") and not r.get("missed_leg")), None)}

@@ -3,168 +3,314 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VI Paper Trader</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<title>Trading Bots</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#f7f7f5; --card:#ffffff; --ink:#1d1d1f; --muted:#6b6b70; --line:#e4e4e0; --a:#2f6fd6; --b:#c2571a; --c:#7b4fc9; --t:#2e8b57; --pos:#1f8a4c; --neg:#c23b3b; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#141416; --card:#1d1d20; --ink:#ececee; --muted:#9a9aa2; --line:#2c2c31; --a:#6ea0ff; --b:#ff9a5c; --c:#b495ff; --t:#5fcf8f; --pos:#4fd18a; --neg:#ff7676; } }
-  :root[data-theme="dark"] { --bg:#141416; --card:#1d1d20; --ink:#ececee; --muted:#9a9aa2; --line:#2c2c31; --a:#6ea0ff; --b:#ff9a5c; --c:#b495ff; --t:#5fcf8f; --pos:#4fd18a; --neg:#ff7676; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
-  main { max-width:1100px; margin:0 auto; padding:20px 16px 40px; }
-  h1 { font-size:22px; margin:0 0 4px; } .sub { color:var(--muted); margin:0 0 18px; }
-  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; margin-bottom:16px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
-  .card h2 { font-size:14px; margin:0 0 6px; color:var(--muted); font-weight:600; }
-  .big { font-size:26px; font-weight:700; } .pos { color:var(--pos); } .neg { color:var(--neg); }
-  .kv { display:grid; grid-template-columns:auto auto; gap:2px 12px; font-size:13px; color:var(--muted); margin-top:8px; }
-  .kv b { color:var(--ink); font-weight:600; text-align:right; }
-  .panel { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:16px; }
-  .panel h3 { margin:0 0 10px; font-size:15px; }
-  .chartbox { position:relative; height:300px; }
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th, td { padding:6px 8px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
-  th:first-child, td:first-child, td.l, th.l { text-align:left; }
-  .scroll { overflow-x:auto; }
-  .foot { color:var(--muted); font-size:13px; margin-top:20px; }
-  .tag { display:inline-block; padding:1px 8px; border-radius:10px; font-size:12px; color:#fff; }
-  .ta { background:var(--a); } .tb { background:var(--b); } .tc { background:var(--c); }
-  .rowtitle { font-size:15px; margin:6px 0 8px; } .muted { color:var(--muted); font-weight:400; font-size:13px; }
+  :root { --bg:#ffffff; --soft:#f7f8fa; --card:#ffffff; --ink:#2b2d3c; --muted:#7c7e8c; --line:#ebecf0;
+          --green:#00a67e; --red:#e5483b; --accent:#00a67e; --chip:#eef8f5;
+          --ta:#5367ff; --tb:#e08a1e; --tc:#8b5cf6; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+          --bg:#121317; --soft:#1a1b21; --card:#1a1b21; --ink:#e9e9ee; --muted:#9a9cab; --line:#2a2c35;
+          --green:#2fd3a2; --red:#ff6b5e; --accent:#2fd3a2; --chip:#173a31; --ta:#8c9bff; --tb:#ffae4f; --tc:#b79bff; } }
+  :root[data-theme="dark"] { --bg:#121317; --soft:#1a1b21; --card:#1a1b21; --ink:#e9e9ee; --muted:#9a9cab; --line:#2a2c35;
+          --green:#2fd3a2; --red:#ff6b5e; --accent:#2fd3a2; --chip:#173a31; --ta:#8c9bff; --tb:#ffae4f; --tc:#b79bff; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:18px 16px 48px; }
+  .top { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:14px; }
+  .brand { font-size:20px; font-weight:700; letter-spacing:-0.2px; }
+  .updated { color:var(--muted); font-size:12.5px; text-align:right; }
+  .seg { display:flex; background:var(--soft); border:1px solid var(--line); border-radius:12px; padding:4px; gap:4px; }
+  .seg button { flex:1; border:0; background:transparent; color:var(--muted); font:600 14.5px Inter, system-ui, sans-serif;
+                padding:10px 8px; border-radius:9px; cursor:pointer; }
+  .seg button.on { background:var(--card); color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .pfnote { color:var(--muted); font-size:12.5px; margin:8px 2px 14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; }
+  .summary { padding:18px 18px 14px; }
+  .lbl { color:var(--muted); font-size:13px; }
+  .val { font-size:30px; font-weight:700; letter-spacing:-0.5px; margin:2px 0 6px; }
+  .spark { width:100%; height:64px; display:block; margin:4px 0 2px; }
+  .sparkdates { display:flex; justify-content:space-between; color:var(--muted); font-size:11.5px; margin-bottom:10px; }
+  .stats { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; border-top:1px solid var(--line); padding-top:12px; }
+  .stats span { display:block; color:var(--muted); font-size:12.5px; }
+  .stats b { display:block; font-size:15.5px; font-weight:600; margin-top:2px; }
+  .stats small { display:block; font-size:12px; font-weight:500; }
+  @media (max-width:560px) { .stats { grid-template-columns:1fr 1fr; } .val { font-size:27px; } }
+  .pos { color:var(--green); } .neg { color:var(--red); }
+  .plans { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px; margin:14px 0 6px; }
+  @media (max-width:560px) { .plans { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+  .plan { text-align:left; border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:12px; padding:10px 12px;
+          cursor:pointer; font:inherit; }
+  .plan.on { border-color:var(--accent); background:var(--chip); }
+  .plan .pn { font-size:12.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .plan .pv { font-weight:600; font-size:15px; margin-top:2px; }
+  .plan .pp { font-size:12.5px; }
+  .tabs { display:flex; gap:22px; border-bottom:1px solid var(--line); margin:16px 0 4px; overflow-x:auto; }
+  .tabs button { border:0; background:none; font:600 14.5px Inter, system-ui, sans-serif; color:var(--muted); padding:10px 0;
+                 border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; }
+  .tabs button.on { color:var(--ink); border-bottom-color:var(--accent); }
+  .tabs .n { font-weight:500; color:var(--muted); }
+  .row { display:flex; justify-content:space-between; gap:12px; padding:14px 4px; border-bottom:1px solid var(--line); cursor:pointer; }
+  .row:hover { background:var(--soft); }
+  .name { font-weight:600; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .meta { color:var(--muted); font-size:12.5px; margin-top:2px; }
+  .r { text-align:right; flex-shrink:0; }
+  .pnl { font-weight:600; }
+  .ptag { font-size:11px; font-weight:600; padding:1px 7px; border-radius:6px; color:#fff; }
+  .pa { background:var(--ta); } .pb { background:var(--tb); } .pc { background:var(--tc); }
+  .badge { font-size:11px; font-weight:600; padding:1px 7px; border-radius:6px; background:var(--soft); color:var(--muted); border:1px solid var(--line); }
+  .detail { background:var(--soft); border-bottom:1px solid var(--line); padding:12px 14px 14px; font-size:13.5px; }
+  .dgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; }
+  .dgrid span { display:block; color:var(--muted); font-size:12px; }
+  .dgrid b { font-weight:600; }
+  .how { color:var(--muted); font-size:12.5px; margin-top:10px; white-space:pre-line; }
+  .empty { color:var(--muted); padding:26px 4px; text-align:center; font-size:14px; }
+  .day { padding:12px 4px; border-bottom:1px solid var(--line); }
+  .day h4 { margin:0 0 4px; font-size:14px; display:flex; gap:8px; align-items:center; }
+  .day ul { margin:4px 0 0; padding-left:18px; color:var(--ink); font-size:13.5px; }
+  .day li { margin:2px 0; }
+  .ok { color:var(--green); } .bad { color:var(--red); }
+  details.rules { margin-top:22px; border:1px solid var(--line); border-radius:12px; padding:4px 14px; }
+  details.rules summary { cursor:pointer; padding:10px 0; font-weight:600; }
+  details.rules p { margin:6px 0 12px; font-size:13.5px; }
+  footer { color:var(--muted); font-size:12.5px; margin-top:18px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  footer a { color:var(--accent); }
 </style>
 </head>
 <body>
 <main>
-  <h1>Vodafone Idea paper trader</h1>
-  <p class="sub" id="sub">Loading…</p>
-  <h3 class="rowtitle">Paper bot <span class="muted">— prices read afterwards from recorded ticks (the ideal result)</span></h3>
-  <div class="cards" id="cards"></div>
-  <h3 class="rowtitle">Live shadow bot <span class="muted">— acts in real time, orders go to the Upstox sandbox (what a real bot would get). All three plans; Plan C picks its stocks at 09:06:30 from the pre-open indicative prices.</span></h3>
-  <div class="cards" id="scards"></div>
-  <div class="panel"><h3>Account value (₹) — solid = paper, dashed = live shadow</h3><div class="chartbox"><canvas id="eq"></canvas></div></div>
-  <div class="panel"><h3>Paper vs live shadow, trade by trade</h3>
-    <p class="sub" style="margin:0 0 8px">A and B: same quantities in both, so any difference is execution: the price seen live at that second, timing, or a session that was missed. C: the live bot must choose its stocks at 09:06:30 from the indicative auction prices (the paper bot sees the final ones) and sizes on the limit price, so it can trade different stocks or slightly different quantities. Gap = shadow price − paper price (paise per share; for buys, positive = shadow paid more).</p>
-    <div class="scroll"><table id="cmp"></table></div></div>
-  <div class="panel"><h3>Open position</h3><div id="open"></div><p class="sub" style="margin:6px 0 0">Plans B and C never hold overnight: every short is bought back the same morning.</p></div>
-  <div class="panel"><h3>Paper trades (newest first)</h3><div class="scroll"><table id="tr"></table></div></div>
-  <div class="panel"><h3>Live shadow bot — what happened each session</h3>
-    <p class="sub" style="margin:0 0 8px">Morning session starts 08:40 (A and B pre-open orders at 09:00:05; Plan C pick and limit sells at 09:06:30, before NSE's random order-entry close between 09:08 and 09:10; B limit buy-back at 09:16:00, market at 09:17:00 if unfilled; C stop-loss order at +5% right after the 09:15 fill, market buy-back at 09:20:00); afternoon session starts 15:05 (limit buy at 15:20:00, market at 15:25:00 if unfilled). Orders go to the Upstox sandbox (pretend, no money).</p>
-    <div id="sh"></div></div>
-  <div class="panel"><h3>What the research expects</h3><div id="ref"></div></div>
-  <div class="panel"><h3>Rules</h3>
-    <p><span class="tag ta">A</span> <b>Overnight futures</b>: at 15:20 a limit buy 1 paisa below the last price (filled only if the market trades below it); if not filled by 15:25, market buy at the best ask. Sell at the next 09:15 pre-open auction price. As many lots as ₹ allows with a cushion. Switch to next month when fewer than 5 trading days are left before expiry.</p>
-    <p><span class="tag tb">B</span> <b>Gap-up auction short</b>: a limit sell at yesterday's last price × 1.01 in the 09:00–09:08 pre-open; it fills only if the auction price is that high, and then at the auction price. Short 5× the account (max ₹50 lakh). Buy back with a limit 1 paisa below the price at 09:16; if not filled by 09:17, market buy at the best ask.</p>
-    <p><span class="tag tc">C</span> <b>Gap-up basket</b>: the same idea as B on 13 stocks, at 2%: a limit sell at yesterday's last price × 1.02 in the pre-open, filled at the auction price. Up to 3 stocks a morning, taken in the priority order below; each short is at most 5% of what that stock usually trades in its opening minute (last 20 days), at most 10% of that morning's pre-open auction value at 09:06:30 (a big sell drags the auction price down), at most ₹50 lakh and at most 2× the Plan C account, and all together at most 5× (so 2× + 2× + 1×: the 2:2:1 rule). Buy back at 09:20 at the best ask, or at once if the stock trades 5% above our short price first (a disaster stop-loss, active from 09:15: stop orders are not allowed in the pre-open). Priority order (best results over the last 12 months first, re-ranked every 6 months): <span id="cstocks"></span>.</p>
-    <p>All three start with ₹5 lakh and compound. All charges per order. Auction prices from Upstox 1-minute candles; other fills from recorded ticks (minute price + ½ paisa only if the recorder missed it, noted on the trade).</p>
+  <div class="top"><div class="brand">Trading Bots</div><div class="updated" id="updated">Loading…</div></div>
+  <div class="seg" role="tablist" aria-label="Portfolio">
+    <button data-pf="live" role="tab">Live bot</button>
+    <button data-pf="paper" role="tab">Paper bot</button>
   </div>
-  <p class="foot">Research on past data / paper trading only, not investment advice.</p>
+  <p class="pfnote" id="pfnote"></p>
+
+  <section class="card summary">
+    <div class="lbl" id="vlabel">Current value</div>
+    <div class="val" id="cur">–</div>
+    <svg class="spark" id="spark" viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true"></svg>
+    <div class="sparkdates"><span id="d0"></span><span id="d1"></span></div>
+    <div class="stats">
+      <div><span>Invested</span><b id="inv">–</b></div>
+      <div><span>Total P&amp;L</span><b id="tot">–</b></div>
+      <div><span id="todaylbl">Today's P&amp;L</span><b id="today">–</b></div>
+      <div><span>Charges paid</span><b id="chg">–</b></div>
+    </div>
+  </section>
+
+  <div class="plans" id="plans"></div>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="pos">Positions <span class="n" id="n-pos"></span></button>
+    <button data-tab="today">Today <span class="n" id="n-today"></span></button>
+    <button data-tab="all">All trades <span class="n" id="n-all"></span></button>
+    <button data-tab="act" id="tab-act">Activity</button>
+  </nav>
+  <section id="list"></section>
+
+  <details class="rules">
+    <summary>How the three plans work</summary>
+    <p><span class="ptag pa">A</span> <b>Overnight futures</b>: buys Vodafone Idea futures at 15:25 and sells them at the next morning's 09:15 opening.</p>
+    <p><span class="ptag pb">B</span> <b>VI gap-up short</b>: if Vodafone Idea opens 1% or more above yesterday's close, it short sells at the 09:15 opening and buys back at 09:16–09:17.</p>
+    <p><span class="ptag pc">C</span> <b>13-stock gap-up basket</b>: if one of 13 chosen stocks opens 2% or more up, it short sells at the 09:15 opening (up to 3 stocks) and buys back at 09:20, or at once if the price runs 5% against it.</p>
+    <p>Each plan started with ₹5 lakh and keeps its profits. <b>Live bot</b> = acts in real time and sends its orders to the Upstox sandbox (pretend orders, real prices). <b>Paper bot</b> = works the same trades out afterwards from recorded prices.</p>
+  </details>
+  <footer><span>Research on past data / paper trading only, not investment advice.</span><a href="details.html">Technical details →</a></footer>
 </main>
 <script>
-const inr = v => (v < 0 ? "−" : "") + "₹" + Math.abs(Math.round(v)).toLocaleString("en-IN");
-const sgn = v => (v > 0 ? "+" : v < 0 ? "−" : "") + "₹" + Math.abs(Math.round(v)).toLocaleString("en-IN");
+const PLAN = { A: "Overnight futures", B: "VI gap-up short", C: "13-stock basket" };
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const TODAY = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const rs = v => (v < 0 ? "−" : "") + "₹" + Math.abs(Math.round(v)).toLocaleString("en-IN");
+const srs = v => (v > 0 ? "+" : v < 0 ? "−" : "") + "₹" + Math.abs(Math.round(v)).toLocaleString("en-IN");
+const px = v => v == null || isNaN(v) ? "–" : "₹" + Number(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pct = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(2) + "%";
 const cls = v => v > 0 ? "pos" : v < 0 ? "neg" : "";
-const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-Promise.all([fetch("data/dashboard.json?" + Date.now()).then(r => r.json()),
-             fetch("data/live.json?" + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null)]).then(([d, lv]) => {
-  // live.json is written by the shadow bot right after each session; dashboard.json's copy only when the paper bot books
-  if (lv && lv.plans && !(d.shadow && d.shadow.built && d.shadow.built >= lv.built)) d.shadow = lv;
-  const lt = d.shadow && d.shadow.built;
-  document.getElementById("sub").textContent = `Started ${d.start_date} (Plan C from ${d.start_c || "25 Nov"}) · paper bot updated ${d.updated}` +
-    (lt ? ` · live bot updated ${new Date(lt.replace(" ", "T")).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false })} IST` : "") +
-    ` · ₹5 lakh per plan, compounding`;
-  const card = (title, x, extra) => `<div class="card"><h2>${title}</h2>
-    <div class="big ${cls(x.pnl)}">${inr(x.now)}</div>
-    <div class="kv"><span>P&amp;L</span><b class="${cls(x.pnl)}">${sgn(x.pnl)} (${x.ret_pct >= 0 ? "+" : ""}${x.ret_pct}%)</b>${extra || ""}</div></div>`;
-  const pe = x => `<span>Trades</span><b>${x.trades}</b><span>Win rate</span><b>${x.win_pct ?? "–"}%</b>
-    <span>Avg per trade</span><b>${x.avg_net_rs == null ? "–" : sgn(x.avg_net_rs)} (${x.avg_net_bps ?? "–"} bps)</b>
-    <span>Worst trade</span><b>${x.worst_rs == null ? "–" : sgn(x.worst_rs)}</b><span>Deepest dip</span><b>${x.max_dip_pct}%</b>`;
-  const C = d.plans.C;
-  document.getElementById("cards").innerHTML = card("A · Overnight futures", d.plans.A, pe(d.plans.A)) +
-    card("B · Gap-up auction short", d.plans.B, pe(d.plans.B)) +
-    (C ? card("C · Gap-up basket (13 stocks)", C, pe(C) + `<span style="grid-column:1/-1;margin-top:4px">Stocks traded: <b style="text-align:left">${(C.stocks_traded || []).join(", ") || "none yet"}</b></span>`) : "") +
-    card(C ? "All three plans" : "Both plans", d.combined, "");
-  document.getElementById("cstocks").textContent = ((d.plan_c || {}).stocks || []).map((s, i) => `${i + 1}. ${s}`).join("  ");
-  const sh = d.shadow || {};
-  const shC = !!(sh.plans && sh.plans.C);
-  const paperNow = shC ? d.combined.now : d.plans.A.now + d.plans.B.now;
-  if (sh.plans) {
-    const se = x => `<span>Trades</span><b>${x.trades}</b><span>Wins</span><b>${x.wins}</b>
-      <span>vs paper</span><b class="${cls(x.vs_paper_rs ?? 0)}">${x.vs_paper_rs == null ? "–" : sgn(x.vs_paper_rs)}</b>
-      <span>Missed trades</span><b>${x.missed}</b>`;
-    document.getElementById("scards").innerHTML = card("A · Overnight (live)", sh.plans.A, se(sh.plans.A)) +
-      card("B · Gap-up short (live)", sh.plans.B, se(sh.plans.B)) +
-      (shC ? card("C · Gap-up basket (live)", sh.plans.C, se(sh.plans.C) + `<span style="grid-column:1/-1;margin-top:4px">Stocks traded: <b style="text-align:left">${(sh.plans.C.stocks_traded || []).join(", ") || "none yet"}</b></span>`) : "") +
-      card(shC ? "All three (live)" : "A + B (live)", sh.combined, `<span>Difference vs paper ${shC ? "all three" : "A + B"}</span><b class="${cls(sh.combined.now - paperNow)}">${sgn(sh.combined.now - paperNow)}</b>`);
+const dshort = d => d ? `${+d.slice(8, 10)} ${MON[+d.slice(5, 7) - 1]}` : "";
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+                set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+
+function nice(ins) {
+  if (!ins) return "Vodafone Idea Futures";
+  const m = ins.match(/^IDEA FUT (\d+) (\w{3}) (\d+)/);
+  if (m) return `Vodafone Idea Fut ${m[1]} ${m[2][0]}${m[2].slice(1).toLowerCase()}`;
+  const s = ins.replace(/ shares \(MIS\)$/, "");
+  return s === "IDEA" ? "Vodafone Idea" : s;
+}
+
+function paperPF(D) {
+  const trades = (D.trades || []).map(t => ({
+    plan: t.plan[0], instrument: t.instrument, side: t.side, qty: +t.qty, date: t.date, entry_time: t.entry_time, entry: +t.entry,
+    exit_date: t.exit_date || t.date, exit_time: t.exit_time, exit: +t.exit, gross: +t.gross_rs, charges: +t.charges_rs, net: +t.net_rs,
+    note: t.note }));
+  const o = D.open;
+  const open = o ? [{ plan: "A", instrument: o.symbol, side: "long", qty: +o.qty, date: o.date, entry_time: o.entry_time, entry: +o.entry, note: o.how }] : [];
+  const curve = (D.days || []).map(d => ({ date: d.date, A: +d.equity_A, B: +d.equity_B, C: +d.equity_C }));
+  return { key: "paper", trades, open, plans: D.plans, curve, updated: D.updated,
+           note: "Paper bot: works out the same trades afterwards from the recorded prices. Updates at 12:40, 16:05 and 18:05." };
+}
+
+function livePF(L) {
+  const rows = (L.compare || []).filter(r => r.shadow_net != null);
+  const trades = rows.map(r => {
+    const side = r.side || (r.plan === "A" ? "long" : "short");
+    const gross = r.shadow_gross ?? Math.round((side === "long" ? r.shadow_exit - r.shadow_entry : r.shadow_entry - r.shadow_exit) * r.qty);
+    return { plan: r.plan, instrument: r.instrument, side, qty: r.qty, date: r.date, entry_time: r.entry_time, entry: r.shadow_entry,
+             exit_date: r.exit_date, exit_time: r.exit_time, exit: r.shadow_exit, gross, charges: r.shadow_charges ?? gross - r.shadow_net,
+             net: r.shadow_net, note: [r.entry_how && "Entry: " + r.entry_how, r.exit_how && "Exit: " + r.exit_how, r.orders && "Orders: " + r.orders]
+               .filter(Boolean).join("\n") };
+  });
+  const o = L.open;
+  const open = o ? [{ plan: o.plan || "A", instrument: o.instrument, side: o.side || "long", qty: o.qty, date: o.date, entry_time: o.entry_time, entry: o.entry }] : [];
+  const start = { A: L.plans.A.start, B: L.plans.B.start, C: L.plans.C.start };
+  const first = (L.compare || []).map(r => r.date).sort()[0];
+  const curve = [...(first ? [{ date: first, ...start }] : []), ...(L.curve || [])];
+  const b = (L.built || "").split(" ");
+  return { key: "live", trades, open, plans: L.plans, curve, updated: b[0] ? `${dshort(b[0])}, ${b[1] || ""} IST` : "",
+           note: "Live bot: acts in real time during market hours and sends its orders to the Upstox sandbox: real prices, pretend money. Updates right after each session (09:20 and 15:25)." };
+}
+
+let DATA = {}, SESS = [];
+let pf = store.get("pf") || "live", plan = "all", tab = store.get("tab") || "pos";
+
+function totals(P) {
+  const ps = plan === "all" ? ["A", "B", "C"] : [plan];
+  const start = ps.reduce((s, p) => s + (P.plans[p]?.start || 0), 0);
+  const now = ps.reduce((s, p) => s + (P.plans[p]?.now || 0), 0);
+  const tr = P.trades.filter(t => ps.includes(t.plan));
+  return { start, now, pnl: now - start, today: tr.filter(t => t.exit_date === TODAY).reduce((s, t) => s + t.net, 0),
+           charges: tr.reduce((s, t) => s + (t.charges || 0), 0), tr, ps };
+}
+
+function spark(P, ps) {
+  const pts = P.curve.map(c => ({ d: c.date, v: ps.reduce((s, p) => s + (c[p] || 0), 0) }));
+  const svg = document.getElementById("spark");
+  if (pts.length < 2) { svg.innerHTML = ""; document.getElementById("d0").textContent = ""; document.getElementById("d1").textContent = ""; return; }
+  const vs = pts.map(p => p.v), lo = Math.min(...vs), hi = Math.max(...vs), span = hi - lo || 1;
+  const xy = pts.map((p, i) => [i / (pts.length - 1) * 300, 58 - (p.v - lo) / span * 52]);
+  const up = vs[vs.length - 1] >= vs[0];
+  const col = getComputedStyle(document.documentElement).getPropertyValue(up ? "--green" : "--red").trim();
+  const line = xy.map(p => p.map(n => n.toFixed(1)).join(",")).join(" ");
+  svg.innerHTML = `<polygon points="0,64 ${line} 300,64" fill="${col}" opacity="0.08"/>` +
+                  `<polyline points="${line}" fill="none" stroke="${col}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`;
+  document.getElementById("d0").textContent = dshort(pts[0].d);
+  document.getElementById("d1").textContent = dshort(pts[pts.length - 1].d);
+}
+
+function legTxt(t, which) {
+  const long = t.side === "long";
+  if (which === "in") return long ? "Bought" : "Short sold";
+  return long ? "Sold" : "Bought back";
+}
+
+function tradeRow(t) {
+  const value = t.entry * t.qty, r = value ? t.net / value * 100 : 0;
+  const head = `<div class="row" tabindex="0">
+      <div><div class="name">${esc(nice(t.instrument))} <span class="ptag p${t.plan.toLowerCase()}">${t.plan}</span></div>
+        <div class="meta">${t.side === "long" ? "Buy → Sell" : "Short → Buy back"} · ${t.qty.toLocaleString("en-IN")} qty · ${dshort(t.exit_date)}</div></div>
+      <div class="r"><div class="pnl ${cls(t.net)}">${srs(t.net)}</div><div class="meta ${cls(t.net)}">${pct(r)}</div></div></div>`;
+  const det = `<div class="detail" hidden><div class="dgrid">
+      <div><span>${legTxt(t, "in")}</span><b>${px(t.entry)}</b> <span>${dshort(t.date)} · ${esc(t.entry_time || "")}</span></div>
+      <div><span>${legTxt(t, "out")}</span><b>${px(t.exit)}</b> <span>${dshort(t.exit_date)} · ${esc((t.exit_time || "").slice(0, 5))}</span></div>
+      <div><span>Quantity</span><b>${t.qty.toLocaleString("en-IN")}</b></div>
+      <div><span>Position value</span><b>${rs(value)}</b></div>
+      <div><span>Gross P&amp;L</span><b class="${cls(t.gross)}">${srs(t.gross)}</b></div>
+      <div><span>Charges (brokerage, STT, fees, GST)</span><b>${rs(t.charges)}</b></div>
+      <div><span>Net P&amp;L</span><b class="${cls(t.net)}">${srs(t.net)}</b></div>
+      <div><span>Plan</span><b>${t.plan} · ${PLAN[t.plan]}</b></div></div>
+      ${t.note ? `<div class="how">${esc(t.note)}</div>` : ""}</div>`;
+  return head + det;
+}
+
+function posRow(o) {
+  const value = o.entry * o.qty;
+  return `<div class="row" tabindex="0">
+      <div><div class="name">${esc(nice(o.instrument))} <span class="ptag p${o.plan.toLowerCase()}">${o.plan}</span> <span class="badge">OPEN</span></div>
+        <div class="meta">${o.side === "long" ? "Bought" : "Short"} · ${o.qty.toLocaleString("en-IN")} qty · ${dshort(o.date)} ${esc(o.entry_time || "")}</div></div>
+      <div class="r"><div class="pnl">${px(o.entry)}</div><div class="meta">avg price</div></div></div>
+    <div class="detail" hidden><div class="dgrid">
+      <div><span>Bought at</span><b>${px(o.entry)}</b> <span>${dshort(o.date)} · ${esc(o.entry_time || "")}</span></div>
+      <div><span>Position value</span><b>${rs(value)}</b></div>
+      <div><span>Quantity</span><b>${o.qty.toLocaleString("en-IN")}</b></div>
+      <div><span>Plan</span><b>${o.plan} · ${PLAN[o.plan]}</b></div></div>
+      <div class="how">Sells at the next 09:15 opening. Its profit or loss is booked when it sells.${o.note ? "\n" + esc(o.note) : ""}</div></div>`;
+}
+
+function sortT(a) { return a.slice().sort((x, y) => (y.exit_date + (y.exit_time || "")).localeCompare(x.exit_date + (x.exit_time || ""))); }
+
+function render() {
+  const P = DATA[pf];
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.pf === pf));
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+  document.getElementById("tab-act").hidden = pf !== "live";
+  if (!P) { document.getElementById("list").innerHTML = `<div class="empty">No data yet.</div>`; return; }
+  document.getElementById("updated").textContent = P.updated ? `Updated ${P.updated}` : "";
+  document.getElementById("pfnote").textContent = P.note;
+  const T = totals(P);
+  document.getElementById("vlabel").textContent = plan === "all" ? "Current value · all three plans" : `Current value · Plan ${plan}: ${PLAN[plan]}`;
+  document.getElementById("cur").textContent = rs(T.now);
+  document.getElementById("inv").textContent = rs(T.start);
+  const tot = document.getElementById("tot");
+  tot.className = cls(T.pnl); tot.innerHTML = `${srs(T.pnl)}<small>${pct(T.start ? T.pnl / T.start * 100 : 0)}</small>`;
+  const td = document.getElementById("today");
+  td.className = cls(T.today); td.innerHTML = `${srs(T.today)}<small>${pct(T.now - T.today ? T.today / (T.now - T.today) * 100 : 0)}</small>`;
+  document.getElementById("todaylbl").textContent = `Today's P&L (${dshort(TODAY)})`;
+  document.getElementById("chg").textContent = rs(T.charges);
+  spark(P, T.ps);
+
+  document.getElementById("plans").innerHTML = ["all", "A", "B", "C"].map(k => {
+    const ps = k === "all" ? ["A", "B", "C"] : [k];
+    const s = ps.reduce((a, p) => a + (P.plans[p]?.start || 0), 0), n = ps.reduce((a, p) => a + (P.plans[p]?.now || 0), 0);
+    return `<button class="plan ${plan === k ? "on" : ""}" data-plan="${k}">
+      <div class="pn">${k === "all" ? "All plans" : `${k} · ${PLAN[k]}`}</div><div class="pv">${rs(n)}</div>
+      <div class="pp ${cls(n - s)}">${srs(n - s)} (${pct(s ? (n - s) / s * 100 : 0)})</div></button>`;
+  }).join("");
+
+  const pos = P.open.filter(o => T.ps.includes(o.plan));
+  const today = T.tr.filter(t => t.exit_date === TODAY);
+  const todayOpen = pos.filter(o => o.date === TODAY);
+  document.getElementById("n-pos").textContent = pos.length ? `(${pos.length})` : "";
+  document.getElementById("n-today").textContent = today.length + todayOpen.length ? `(${today.length + todayOpen.length})` : "";
+  document.getElementById("n-all").textContent = T.tr.length ? `(${T.tr.length})` : "";
+  let html = "";
+  if (tab === "pos") {
+    html = pos.length ? pos.map(posRow).join("") :
+      `<div class="empty">No open positions.<br>Plans B and C always buy back the same morning; Plan A holds one futures lot from 15:25 to the next 09:15.</div>`;
+  } else if (tab === "today") {
+    html = today.length || todayOpen.length ? sortT(today).map(tradeRow).join("") + todayOpen.map(posRow).join("") :
+      `<div class="empty">No trades closed today (${dshort(TODAY)}) yet.${pf === "paper" ? "<br>The paper bot books the morning at 12:40." : ""}</div>`;
+  } else if (tab === "all") {
+    html = T.tr.length ? sortT(T.tr).map(tradeRow).join("") : `<div class="empty">No trades yet.</div>`;
   } else {
-    document.getElementById("scards").innerHTML = `<div class="card">Shadow results appear after the first live session is booked${sh.error ? " (" + sh.error + ")" : ""}.</div>`;
+    html = SESS.length ? SESS.slice().reverse().filter(s => s.session !== "Token test").map(s => {
+      const ok = /^OK|Holiday/.test(s.result);
+      return `<div class="day"><h4>${dshort(s.day)} · ${esc(s.session)} <span class="${ok ? "ok" : "bad"}">${ok ? "✓" : "⚠"} ${esc(s.result)}</span></h4>
+        <ul>${(s.lines || []).map(l => `<li>${esc(l)}</li>`).join("")}</ul></div>`; }).join("") : `<div class="empty">No sessions yet.</div>`;
   }
-  const days = d.days || [];
-  const curve = (sh.curve || []);
-  const lastPaper = days.length ? days[days.length - 1].date : "";
-  const extra = [...new Set(curve.map(c => c.date))].filter(x => x > lastPaper).sort();   // live days the paper bot has not booked yet
-  const dts = days.map(x => x.date).concat(extra);
-  const pad = a => a.concat(extra.map(() => null));
-  const lab = [d.start_date + " start"].concat(dts);
-  const s0 = d.plans.A.start, s1 = d.plans.B.start, s2 = C ? C.start : 0;
-  const live = k => { let v = k === "A" ? s0 : k === "B" ? s1 : s2; const m = Object.fromEntries(curve.map(c => [c.date, c[k]]));
-    return [v].concat(dts.map(x => (m[x] != null ? (v = m[x]) : v))); };
-  new Chart(document.getElementById("eq"), { type: "line",
-    data: { labels: lab, datasets: [
-      { label: "A overnight", data: [s0].concat(pad(days.map(x => +x.equity_A))), borderColor: css("--a"), pointRadius: 0, tension: .1 },
-      { label: "A live shadow", data: live("A"), borderColor: css("--a"), borderDash: [6, 4], pointRadius: 0, tension: .1 },
-      { label: "B gap-up short", data: [s1].concat(pad(days.map(x => +x.equity_B))), borderColor: css("--b"), pointRadius: 0, tension: .1 },
-      { label: "B live shadow", data: live("B"), borderColor: css("--b"), borderDash: [6, 4], pointRadius: 0, tension: .1 },
-      ...(C ? [{ label: "C gap-up basket", data: [s2].concat(pad(days.map(x => +(x.equity_C ?? s2)))), borderColor: css("--c"), pointRadius: 0, tension: .1 }] : []),
-      ...(C && shC ? [{ label: "C live shadow", data: live("C"), borderColor: css("--c"), borderDash: [6, 4], pointRadius: 0, tension: .1 }] : []),
-      { label: C ? "All three (paper)" : "Both (paper)", data: [s0 + s1 + s2].concat(pad(days.map(x => +x.total))), borderColor: css("--t"), pointRadius: 0, tension: .1, yAxisID: "y2" } ] },
-    options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
-      plugins: { legend: { labels: { color: css("--ink") } }, tooltip: { callbacks: { label: c => `${c.dataset.label}: ${inr(c.parsed.y)}` } } },
-      scales: { x: { ticks: { color: css("--muted"), maxTicksLimit: 8 }, grid: { color: css("--line") } },
-                y: { ticks: { color: css("--muted"), callback: v => "₹" + (v / 1e5).toFixed(2) + "L" }, grid: { color: css("--line") }, title: { display: true, text: "each plan", color: css("--muted") } },
-                y2: { position: "right", ticks: { color: css("--muted"), callback: v => "₹" + (v / 1e5).toFixed(2) + "L" }, grid: { display: false }, title: { display: true, text: "all plans", color: css("--muted") } } } } });
-  const f4 = v => v == null ? "–" : (+v).toFixed(4);
-  const gp = v => v == null ? "–" : (v > 0 ? "+" : "") + v;
-  const cmp = (sh.compare || []).slice().reverse();
-  document.getElementById("cmp").innerHTML = `<tr><th class="l">Plan</th><th class="l">Date</th><th>Qty</th><th>Paper in → out</th><th>Live in → out</th><th>Gap in / out (paise)</th><th>Paper net</th><th>Live net</th><th>Difference</th><th class="l">Live orders (sandbox)</th></tr>` +
-    (cmp.length ? cmp.map(r => `<tr><td><span class="tag t${r.plan.toLowerCase()}">${r.plan}</span>${r.plan === "C" ? " " + esc((r.instrument || "").split(" ")[0]) : ""}</td><td class="l">${r.date}${r.exit_date && r.exit_date !== r.date ? " → " + r.exit_date : ""}</td>
-      <td>${(+r.qty).toLocaleString("en-IN")}</td><td>${f4(r.paper_entry)} → ${f4(r.paper_exit)}</td><td>${f4(r.shadow_entry)} → ${f4(r.shadow_exit)}</td>
-      <td>${gp(r.entry_gap_paise)} / ${gp(r.exit_gap_paise)}</td><td class="${cls(r.paper_net ?? 0)}">${r.paper_net == null ? "open" : sgn(r.paper_net)}</td>
-      <td class="${cls(r.shadow_net ?? 0)}">${r.shadow_net == null ? (r.missed ? "missed" : "open") : sgn(r.shadow_net)}</td>
-      <td class="${cls(r.diff_rs ?? 0)}"><b>${r.diff_rs == null ? "–" : sgn(r.diff_rs)}</b></td><td class="l" style="white-space:normal">${r.orders || ""}</td></tr>`).join("")
-      : `<tr><td colspan="10" class="l">No trades to compare yet.</td></tr>`);
-  const o = d.open, so = sh.open;
-  document.getElementById("open").innerHTML =
-    `<p style="margin:0 0 6px"><span class="tag ta">A</span> <b>Paper bot:</b> ` + (o ? `${o.lots} lot(s) = <b>${(+o.qty).toLocaleString("en-IN")} ${o.symbol}</b>, bought at ₹${(+o.entry).toFixed(4)} on ${o.date} (${o.how || ""}); sells at the next 09:15 auction.` : "no open position.") + `</p>` +
-    `<p style="margin:0"><span class="tag ta">A</span> <b>Live shadow bot:</b> ` + (so ? `<b>${(+so.qty).toLocaleString("en-IN")} ${so.instrument}</b>, bought at ₹${(+so.entry).toFixed(4)} on ${so.date} (price seen live at 15:25:00); sells at the next 09:15 auction.` : "no open position.") + `</p>` +
-    (o && so ? `<p class="sub" style="margin:6px 0 0">Entry difference: ${((so.entry - o.entry) * 100).toFixed(2)} paise per share = ${sgn((so.entry - o.entry) * so.qty * -1)} for the live bot vs paper.</p>` : "");
-  const tr = (d.trades || []).slice().reverse();
-  document.getElementById("tr").innerHTML = `<tr><th class="l">Plan</th><th class="l">Date</th><th class="l">Contract</th><th>Qty</th><th>Entry</th><th>Exit</th><th>Gross</th><th>Charges</th><th>Net</th><th>Net bps</th><th>Account after</th><th class="l">Note</th></tr>` +
-    (tr.length ? tr.map(t => `<tr><td><span class="tag t${t.plan[0].toLowerCase()}">${t.plan[0]}</span></td><td class="l">${t.date}${t.exit_date !== t.date ? " → " + t.exit_date : ""}</td><td class="l">${t.instrument}</td>
-      <td>${(+t.qty).toLocaleString("en-IN")}</td><td>${(+t.entry).toFixed(4)}</td><td>${(+t.exit).toFixed(4)}</td><td class="${cls(+t.gross_rs)}">${sgn(+t.gross_rs)}</td>
-      <td>${inr(+t.charges_rs)}</td><td class="${cls(+t.net_rs)}"><b>${sgn(+t.net_rs)}</b></td><td>${t.net_bps}</td><td>${inr(+t.equity_after)}</td><td class="l">${t.note}</td></tr>`).join("")
-      : `<tr><td colspan="12" class="l">No trades yet.</td></tr>`);
-  const r = d.reference;
-  document.getElementById("ref").innerHTML = `Replaying the last 12 months of history on today's prices: <b>A ≈ +${r.overnight_last12m_pct}%</b> a year
-    (about ${r.overnight_net_bps_per_night} bps a night after costs) and <b>B ≈ +${r.gapshort_last12m_pct}%</b> a year (about ${r.gapshort_net_bps_per_trade_2026} bps per trade,
-    roughly ${r.gapup_days_per_month} gap-up mornings a month). Three months is a short test: expect B to have only 6–10 trades.` +
-    (r.planc_fresh_2026_pct ? `<br><b>C</b>: a fresh ₹5 lakh in Jan–Nov 2026 would have grown about <b>+${r.planc_fresh_2026_pct}%</b>, with about ${r.planc_trades_per_month} trades a month.
-    Over 5 years (from Jan 2022, compounding) about +${r.planc_5yr_compound_pct_per_year}% a year: the % falls as the pot grows, because each stock only takes so much money at the open.` : "");
-}).catch(e => { document.getElementById("sub").textContent = "Could not load data: " + e; });
-const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
-const badge = r => {
-  const bad = /problem|failed|missed|rejected|could not/i.test(r), info = /holiday|logged only/i.test(r);
-  const col = bad ? "var(--neg)" : info ? "var(--muted)" : "var(--pos)";
-  return `<span style="display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;color:#fff;background:${col}">${esc(r)}</span>`;
-};
-fetch("data/shadow.json?" + Date.now()).then(r => r.ok ? r.json() : []).then(rows => {
-  const t = document.getElementById("sh");
-  if (!Array.isArray(rows) || !rows.length || !rows[0].lines) { t.innerHTML = "No shadow sessions yet."; return; }
-  t.innerHTML = rows.slice().reverse().map(s => `
-    <div style="border-top:1px solid var(--line);padding:10px 0">
-      <div><b>${esc(s.day)} · ${esc(s.session)}</b> &nbsp;${badge(s.result)}</div>
-      <ul style="margin:6px 0 4px 18px;padding:0">${s.lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul>
-      ${s.raw && s.raw.length ? `<details><summary class="sub" style="cursor:pointer">show technical details</summary>
-        <div class="scroll"><table>${s.raw.map(e => `<tr><td class="l">${esc(e.t)}</td><td class="l">${esc(e.what)}</td><td class="l" style="white-space:normal">${esc(typeof e.detail === "string" ? e.detail : JSON.stringify(e.detail))}</td></tr>`).join("")}</table></div></details>` : ""}
-    </div>`).join("");
-}).catch(() => {});
+  document.getElementById("list").innerHTML = html;
+}
+
+document.addEventListener("click", e => {
+  const seg = e.target.closest(".seg button"); if (seg) { pf = seg.dataset.pf; store.set("pf", pf); if (pf !== "live" && tab === "act") tab = "pos"; render(); return; }
+  const tb = e.target.closest(".tabs button"); if (tb) { tab = tb.dataset.tab; store.set("tab", tab); render(); return; }
+  const pl = e.target.closest(".plan"); if (pl) { plan = pl.dataset.plan; render(); return; }
+  const row = e.target.closest(".row"); if (row && row.nextElementSibling?.classList.contains("detail")) row.nextElementSibling.hidden = !row.nextElementSibling.hidden;
+});
+document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.classList?.contains("row")) e.target.click(); });
+
+const get = u => fetch(u + "?" + Date.now()).then(r => r.ok ? r.json() : null).catch(() => null);
+Promise.all([get("data/dashboard.json"), get("data/live.json"), get("data/shadow.json")]).then(([D, L, S]) => {
+  if (D) DATA.paper = paperPF(D);
+  const lv = L && (!D?.shadow || (L.built || "") >= (D.shadow.built || "")) ? L : D?.shadow;
+  if (lv) DATA.live = livePF(lv);
+  SESS = S || [];
+  if (!DATA[pf]) pf = DATA.live ? "live" : "paper";
+  if (pf !== "live" && tab === "act") tab = "pos";
+  render();
+});
 </script>
 </body>
 </html>
