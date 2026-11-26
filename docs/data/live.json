@@ -2,10 +2,10 @@
  "plans": {
   "A": {
    "start": 500000,
-   "now": 499470,
-   "pnl": -530,
-   "ret_pct": -0.11,
-   "trades": 1,
+   "now": 498236,
+   "pnl": -1764,
+   "ret_pct": -0.35,
+   "trades": 2,
    "wins": 0,
    "vs_paper_rs": -4286,
    "missed": 0
@@ -36,9 +36,9 @@
  },
  "start_c": "2026-11-25",
  "combined": {
-  "now": 1505777,
-  "pnl": 5777,
-  "ret_pct": 0.39
+  "now": 1504543,
+  "pnl": 4543,
+  "ret_pct": 0.3
  },
  "compare": [
   {
@@ -62,12 +62,16 @@
   {
    "plan": "A",
    "date": "2026-11-25",
-   "exit_date": "",
+   "exit_date": "2026-11-26",
    "qty": 71475,
    "instrument": null,
    "shadow_entry": 11.75,
-   "shadow_exit": null,
-   "orders": "buy: sent 15:20:00 (881 ms) ✓ → cancelled 15:25:00 → sent 15:25:00 (252 ms) ✓"
+   "shadow_exit": 11.74,
+   "orders": "buy: sent 15:20:00 (881 ms) ✓ → cancelled 15:25:00 → sent 15:25:00 (252 ms) ✓; sell: sent 09:00:05 (328 ms) ✓",
+   "shadow_net": -1234,
+   "paper_entry": 11.75,
+   "paper_qty": 71475,
+   "entry_gap_paise": 0.0
   },
   {
    "plan": "C",
@@ -94,13 +98,14 @@
    "A": 499470,
    "B": 500000,
    "C": 506307
+  },
+  {
+   "date": "2026-11-26",
+   "A": 498236,
+   "B": 500000,
+   "C": 506307
   }
  ],
- "open": {
-  "date": "2026-11-25",
-  "qty": 71475,
-  "instrument": null,
-  "entry": 11.75
- },
- "built": "2026-11-25 15:25"
+ "open": null,
+ "built": "2026-11-26 09:20"
 }
