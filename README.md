@@ -1,7 +1,7 @@
 # Vodafone Idea paper trader
 
 Three plans, Rs 5 lakh each, compounding: A and B on Vodafone Idea (VI), C on a basket of 13 stocks. **Paper trading only: no real orders.**
-Dashboard: https://ajbhutada.github.io/vi-paper-trader/  ·  updated 26 Nov 2026 12:40 IST
+Dashboard: https://ajbhutada.github.io/vi-paper-trader/  ·  updated 26 Nov 2026 13:35 IST
 
 | Plan | Start | Now | P&L | Return | Trades | Win rate | Avg / trade | Worst trade | Deepest dip |
 |---|---|---|---|---|---|---|---|---|---|
