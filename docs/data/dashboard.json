@@ -1,5 +1,5 @@
 {
- "updated": "26 Nov 2026 13:35 IST",
+ "updated": "26 Nov 2026 16:05 IST",
  "start_date": "2026-11-23",
  "start_c": "2026-11-25",
  "plans": {
@@ -77,7 +77,17 @@
   "rerank_due": "2027-05-25",
   "last_c": "2026-11-26"
  },
- "open": null,
+ "open": {
+  "date": "2026-11-26",
+  "key": "NSE_FO|58992",
+  "symbol": "IDEA FUT 29 DEC 26",
+  "lot": 71475,
+  "lots": 1,
+  "qty": 71475,
+  "entry": 11.67,
+  "entry_time": "15:25:04",
+  "how": "limit 11.66 not filled by 15:25; market: tick best ask at 15:25:04 (ask 11.67 x 71,475)"
+ },
  "days": [
   {
    "date": "2026-11-23",
@@ -103,6 +113,19 @@
    "gap_pct": "0.42",
    "B_traded": "False",
    "C_trades": "1",
+   "note": ""
+  },
+  {
+   "date": "2026-11-26",
+   "equity_A": "506808",
+   "equity_B": "500000",
+   "equity_C": "507420",
+   "total": "1514228",
+   "A_lots_overnight": "1",
+   "A_contract": "IDEA FUT 29 DEC 26",
+   "gap_pct": "0.34",
+   "B_traded": "False",
+   "C_trades": "0",
    "note": ""
   }
  ],
@@ -374,6 +397,24 @@
     "diff_rs": -1113,
     "entry_gap_paise": 0.0,
     "exit_gap_paise": 155.28
+   },
+   {
+    "plan": "A",
+    "date": "2026-11-26",
+    "exit_date": "",
+    "qty": 71475,
+    "instrument": "IDEA FUT 29 DEC 26",
+    "side": "long",
+    "entry_time": "15:25",
+    "exit_time": null,
+    "entry_how": "limit 11.66 not filled by 15:25; market buy at the best ask",
+    "exit_how": null,
+    "shadow_entry": 11.67,
+    "shadow_exit": null,
+    "orders": "buy: sent 15:20:00 (296 ms) \u2713 \u2192 cancelled 15:25:00 \u2192 sent 15:25:01 (247 ms) \u2713",
+    "paper_entry": 11.67,
+    "paper_qty": 71475,
+    "entry_gap_paise": 0.0
    }
   ],
   "curve": [
@@ -390,7 +431,15 @@
     "C": 506307
    }
   ],
-  "open": null,
-  "built": "2026-11-26 13:35"
+  "open": {
+   "date": "2026-11-26",
+   "qty": 71475,
+   "instrument": "IDEA FUT 29 DEC 26",
+   "entry": 11.67,
+   "entry_time": "15:25",
+   "side": "long",
+   "plan": "A"
+  },
+  "built": "2026-11-26 16:05"
  }
 }
