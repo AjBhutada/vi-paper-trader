@@ -2,10 +2,10 @@
  "plans": {
   "A": {
    "start": 500000,
-   "now": 498236,
-   "pnl": -1764,
-   "ret_pct": -0.35,
-   "trades": 2,
+   "now": 495576,
+   "pnl": -4424,
+   "ret_pct": -0.88,
+   "trades": 3,
    "wins": 0,
    "vs_paper_rs": -8572,
    "missed": 0
@@ -36,9 +36,9 @@
  },
  "start_c": "2026-11-25",
  "combined": {
-  "now": 1504543,
-  "pnl": 4543,
-  "ret_pct": 0.3
+  "now": 1501883,
+  "pnl": 1883,
+  "ret_pct": 0.13
  },
  "compare": [
   {
@@ -118,17 +118,23 @@
   {
    "plan": "A",
    "date": "2026-11-26",
-   "exit_date": "",
+   "exit_date": "2026-11-27",
    "qty": 71475,
    "instrument": "IDEA FUT 29 DEC 26",
    "side": "long",
    "entry_time": "15:25",
-   "exit_time": null,
+   "exit_time": "09:15",
    "entry_how": "limit 11.66 not filled by 15:25; market buy at the best ask",
-   "exit_how": null,
+   "exit_how": "auction price (traded in the pre-open auction at 09:08:10)",
    "shadow_entry": 11.67,
-   "shadow_exit": null,
-   "orders": "buy: sent 15:20:00 (296 ms) ✓ → cancelled 15:25:00 → sent 15:25:01 (247 ms) ✓"
+   "shadow_exit": 11.64,
+   "orders": "buy: sent 15:20:00 (296 ms) ✓ → cancelled 15:25:00 → sent 15:25:01 (247 ms) ✓; sell: sent 09:00:05 (383 ms) ✓",
+   "shadow_net": -2660,
+   "shadow_gross": -2144,
+   "shadow_charges": 516,
+   "paper_entry": 11.67,
+   "paper_qty": 71475,
+   "entry_gap_paise": 0.0
   }
  ],
  "curve": [
@@ -143,16 +149,14 @@
    "A": 498236,
    "B": 500000,
    "C": 506307
+  },
+  {
+   "date": "2026-11-27",
+   "A": 495576,
+   "B": 500000,
+   "C": 506307
   }
  ],
- "open": {
-  "date": "2026-11-26",
-  "qty": 71475,
-  "instrument": "IDEA FUT 29 DEC 26",
-  "entry": 11.67,
-  "entry_time": "15:25",
-  "side": "long",
-  "plan": "A"
- },
- "built": "2026-11-26 15:25"
+ "open": null,
+ "built": "2026-11-27 09:20"
 }
