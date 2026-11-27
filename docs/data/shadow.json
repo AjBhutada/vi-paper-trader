@@ -4128,6 +4128,158 @@
  },
  {
   "day": "2026-11-27",
+  "session": "Afternoon",
+  "result": "Problem",
+  "lines": [
+   "Connected to the live Upstox feed at 15:05:27.",
+   "Problem: Connection to remote host was lost.",
+   "Plan A account ₹5,04,148 → 1 lot(s) of IDEA FUT 29 DEC 26 (71,475 shares); last price ₹11.56.",
+   "15:20:00 Plan A limit buy: buy 71,475 IDEA FUT 29 DEC 26, limit ₹11.55 → accepted by the Upstox sandbox (848 ms)",
+   "15:25:00 Plan A market buy: buy 71,475 IDEA FUT 29 DEC 26, market order → accepted by the Upstox sandbox (240 ms)",
+   "Bought at ₹11.57 — limit 11.55 not filled by 15:25; market buy at the best ask."
+  ],
+  "raw": [
+   {
+    "t": "15:05:27.463",
+    "what": "feed",
+    "detail": "connected"
+   },
+   {
+    "t": "15:20:00.000",
+    "what": "plan",
+    "detail": {
+     "contract": "IDEA FUT 29 DEC 26",
+     "lot": 71475,
+     "lots": 1,
+     "equity_A": 504148,
+     "est_price": 11.56
+    }
+   },
+   {
+    "t": "15:20:00.847",
+    "what": "order_sent",
+    "detail": {
+     "label": "A-buy-limit",
+     "request": {
+      "quantity": 71475,
+      "product": "D",
+      "validity": "DAY",
+      "price": 11.55,
+      "tag": "vi-shadow-A-buy-limi",
+      "instrument_token": "NSE_FO|58992",
+      "order_type": "LIMIT",
+      "transaction_type": "BUY",
+      "disclosed_quantity": 0,
+      "trigger_price": 0.0,
+      "is_amo": false,
+      "slice": false
+     },
+     "status": "success",
+     "order_ids": [
+      "261127152000727"
+     ],
+     "ms": 848
+    }
+   },
+   {
+    "t": "15:20:54.899",
+    "what": "feed_error",
+    "detail": "Connection to remote host was lost."
+   },
+   {
+    "t": "15:20:54.900",
+    "what": "feed",
+    "detail": "closed (None, None)"
+   },
+   {
+    "t": "15:20:56.525",
+    "what": "feed",
+    "detail": "connected"
+   },
+   {
+    "t": "15:25:00.319",
+    "what": "cancel_sent",
+    "detail": {
+     "label": "A-buy-limit",
+     "order_id": "261127152000727",
+     "status": "success",
+     "ms": 265
+    }
+   },
+   {
+    "t": "15:25:00.319",
+    "what": "quote",
+    "detail": {
+     "leg": "A-buy",
+     "best_ask": [
+      [
+       11.57,
+       71475
+      ],
+      [
+       11.58,
+       142950
+      ],
+      [
+       11.59,
+       285900
+      ]
+     ],
+     "ltp": 11.59
+    }
+   },
+   {
+    "t": "15:25:00.559",
+    "what": "order_sent",
+    "detail": {
+     "label": "A-buy",
+     "request": {
+      "quantity": 71475,
+      "product": "D",
+      "validity": "DAY",
+      "price": 0.0,
+      "tag": "vi-shadow-A-buy",
+      "instrument_token": "NSE_FO|58992",
+      "order_type": "MARKET",
+      "transaction_type": "BUY",
+      "disclosed_quantity": 0,
+      "trigger_price": 0.0,
+      "is_amo": false,
+      "slice": false
+     },
+     "status": "success",
+     "order_ids": [
+      "261127152500448"
+     ],
+     "ms": 240
+    }
+   },
+   {
+    "t": "15:25:00.559",
+    "what": "fill",
+    "detail": {
+     "leg": "A-buy",
+     "price": 11.57,
+     "qty": 71475,
+     "how": "limit 11.55 not filled by 15:25; market buy at the best ask"
+    }
+   },
+   {
+    "t": "15:25:02.782",
+    "what": "feed",
+    "detail": "closed (None, None)"
+   },
+   {
+    "t": "15:25:02.783",
+    "what": "feed_stats",
+    "detail": {
+     "messages": 678
+    }
+   }
+  ]
+ },
+ {
+  "day": "2026-11-27",
   "session": "Morning",
   "result": "OK - sandbox orders accepted",
   "lines": [

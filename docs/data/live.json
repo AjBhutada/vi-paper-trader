@@ -133,8 +133,27 @@
    "shadow_gross": -2144,
    "shadow_charges": 516,
    "paper_entry": 11.67,
+   "paper_exit": 11.64,
+   "paper_net": -2660.0,
    "paper_qty": 71475,
-   "entry_gap_paise": 0.0
+   "diff_rs": 0,
+   "entry_gap_paise": 0.0,
+   "exit_gap_paise": 0.0
+  },
+  {
+   "plan": "A",
+   "date": "2026-11-27",
+   "exit_date": "",
+   "qty": 71475,
+   "instrument": "IDEA FUT 29 DEC 26",
+   "side": "long",
+   "entry_time": "15:25",
+   "exit_time": null,
+   "entry_how": "limit 11.55 not filled by 15:25; market buy at the best ask",
+   "exit_how": null,
+   "shadow_entry": 11.57,
+   "shadow_exit": null,
+   "orders": "buy: sent 15:20:00 (848 ms) ✓ → cancelled 15:25:00 → sent 15:25:00 (240 ms) ✓"
   }
  ],
  "curve": [
@@ -157,6 +176,14 @@
    "C": 506307
   }
  ],
- "open": null,
- "built": "2026-11-27 09:20"
+ "open": {
+  "date": "2026-11-27",
+  "qty": 71475,
+  "instrument": "IDEA FUT 29 DEC 26",
+  "entry": 11.57,
+  "entry_time": "15:25",
+  "side": "long",
+  "plan": "A"
+ },
+ "built": "2026-11-27 15:25"
 }
