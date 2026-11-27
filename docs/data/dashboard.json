@@ -1,5 +1,5 @@
 {
- "updated": "27 Nov 2026 13:35 IST",
+ "updated": "27 Nov 2026 16:05 IST",
  "start_date": "2026-11-23",
  "start_c": "2026-11-25",
  "plans": {
@@ -77,7 +77,17 @@
   "rerank_due": "2027-05-25",
   "last_c": "2026-11-27"
  },
- "open": null,
+ "open": {
+  "date": "2026-11-27",
+  "key": "NSE_FO|58992",
+  "symbol": "IDEA FUT 29 DEC 26",
+  "lot": 71475,
+  "lots": 1,
+  "qty": 71475,
+  "entry": 11.56,
+  "entry_time": "15:21:57",
+  "how": "limit 11.56 (1 paisa below 11.57) placed 15:20, filled 15:21:57 when it traded at 11.55"
+ },
  "days": [
   {
    "date": "2026-11-23",
@@ -114,6 +124,19 @@
    "A_lots_overnight": "1",
    "A_contract": "IDEA FUT 29 DEC 26",
    "gap_pct": "0.34",
+   "B_traded": "False",
+   "C_trades": "0",
+   "note": ""
+  },
+  {
+   "date": "2026-11-27",
+   "equity_A": "504148",
+   "equity_B": "500000",
+   "equity_C": "507420",
+   "total": "1511569",
+   "A_lots_overnight": "1",
+   "A_contract": "IDEA FUT 29 DEC 26",
+   "gap_pct": "0.0",
    "B_traded": "False",
    "C_trades": "0",
    "note": ""
@@ -430,6 +453,24 @@
     "diff_rs": 0,
     "entry_gap_paise": 0.0,
     "exit_gap_paise": 0.0
+   },
+   {
+    "plan": "A",
+    "date": "2026-11-27",
+    "exit_date": "",
+    "qty": 71475,
+    "instrument": "IDEA FUT 29 DEC 26",
+    "side": "long",
+    "entry_time": "15:25",
+    "exit_time": null,
+    "entry_how": "limit 11.55 not filled by 15:25; market buy at the best ask",
+    "exit_how": null,
+    "shadow_entry": 11.57,
+    "shadow_exit": null,
+    "orders": "buy: sent 15:20:00 (848 ms) \u2713 \u2192 cancelled 15:25:00 \u2192 sent 15:25:00 (240 ms) \u2713",
+    "paper_entry": 11.56,
+    "paper_qty": 71475,
+    "entry_gap_paise": 1.0
    }
   ],
   "curve": [
@@ -452,7 +493,15 @@
     "C": 506307
    }
   ],
-  "open": null,
-  "built": "2026-11-27 13:35"
+  "open": {
+   "date": "2026-11-27",
+   "qty": 71475,
+   "instrument": "IDEA FUT 29 DEC 26",
+   "entry": 11.57,
+   "entry_time": "15:25",
+   "side": "long",
+   "plan": "A"
+  },
+  "built": "2026-11-27 16:05"
  }
 }

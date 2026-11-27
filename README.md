@@ -1,7 +1,7 @@
 # Vodafone Idea paper trader
 
 Three plans, Rs 5 lakh each, compounding: A and B on Vodafone Idea (VI), C on a basket of 13 stocks. **Paper trading only: no real orders.**
-Dashboard: https://ajbhutada.github.io/vi-paper-trader/  ·  updated 27 Nov 2026 13:35 IST
+Dashboard: https://ajbhutada.github.io/vi-paper-trader/  ·  updated 27 Nov 2026 16:05 IST
 
 | Plan | Start | Now | P&L | Return | Trades | Win rate | Avg / trade | Worst trade | Deepest dip |
 |---|---|---|---|---|---|---|---|---|---|
@@ -10,7 +10,7 @@ Dashboard: https://ajbhutada.github.io/vi-paper-trader/  ·  updated 27 Nov 2026
 | C Gap-up basket (13 stocks) | Rs 500,000 | Rs 507,420 | Rs +7,420 | +1.48% | 1 | 100.0% | Rs +7,420 | Rs +7,420 | 0.0% |
 | **All three** | Rs 1,500,000 | Rs 1,511,569 | Rs +11,569 | +0.77% | | | | | |
 
-Open overnight position: none
+Open overnight position: 1 lot(s) = 71,475 IDEA FUT 29 DEC 26 bought at 11.5600 on 2026-11-27
 
 Plan C starts 2026-11-25. Stocks in priority order: IDEA, VEDL, VMM, POLICYBZR, RELIANCE, PREMIERENE, ONGC, WAAREEENER, MAXHEALTH, VBL, TATASTEEL, BLUESTARCO, GODFRYPHLP.
 
